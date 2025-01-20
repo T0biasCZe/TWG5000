@@ -1,0 +1,181 @@
+﻿@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+<div id="info-popup" class="windowsWindow" style="display: @(visible ? "unset" : "none")">
+	<div class="windowContent">
+		@if(photograph != null) {
+			<div class="windowPhotograph">
+				<Photo photograph="@photograph" enlargeOnHover="false" whiteBorder="@whiteBorder" maxSize="@maxPhotoSize" quality="Photo.UsedQuality.Medium" @ref="photo" />
+			</div>
+			<div class="windowsPhotographInfo">
+				<h1>@photograph.title</h1>
+				<h3>@photograph.fileName</h3>
+				@if(photograph.description.Length > 1){
+					<p>Popis: @photograph.description</p>
+				}
+				<p>Datum pořízení: @photograph.dateTaken</p>
+				@if(photograph.GetCoordinatesDegreeString().Length > 1) {
+					<p>GPS: @photograph.GetCoordinatesDegreeString()</p>
+				}
+				@if(photograph.author.Length > 1) {
+                    <p>Autor: @photograph.author</p>
+                }
+				@if(photograph.cameraModel.Length > 1) {
+					<p>Fotoaparát: @photograph.cameraModel</p>
+                }
+
+				<img @onclick="DownloadPhoto" src="/gfx/floppyred_download.png" />
+                <div class="photoGraphExif">
+                    <span>EXIF:</span>
+					<button class="exifButton" onclick="ToggleExif()">
+                        <img src="./gfx/DDORes_2553i_small.png">
+                    </button>
+
+					<script>
+						function ToggleExif(){
+							console.log('pičo');
+							var exif = document.querySelector('.exif');
+                            if (exif.style.display === 'none') {
+                                exif.style.display = 'block';
+                            } else {
+                                exif.style.display = 'none';
+                            }
+						}
+
+						//on page finished loading
+						document.addEventListener('DOMContentLoaded', function() {
+							if (window.innerWidth < 900) {
+								console.log("small screen toggling exif");
+								document.querySelector('.exif').style.display = 'block';
+							}
+                        });
+
+					</script>
+                    <div class="exif" style="display: none;">
+                        <span>
+                            @((MarkupString)photograph.exif.Replace("\n", "<br>"))
+                        </span>
+                    </div>
+                </div>
+			</div>
+		}
+	</div>
+	<img class="corner-top-left windowsdeco" src="./gfx/corner-top-left.png" alt="">
+	<img class="corner-top-right windowsdeco" src="./gfx/corner-top-right.png" alt="" @onclick="Hide">
+	<img class="corner-bottom-left windowsdeco" src="./gfx/corner-bottom-left.png" alt="">
+	<img class="corner-bottom-right windowsdeco" src="./gfx/corner-bottom-right.png" alt="">
+	<img class="border-top windowsdeco " alt="" src="./gfx/border-top.png">
+	<img class="border-bottom windowsdeco" alt="" src="./gfx/border-bottom.png">
+	<img class="border-left windowsdeco" alt="" src="./gfx/border-left.png">
+	<img class="border-right windowsdeco" alt="" src="./gfx/border-right.png">
+	<script>
+		var closeButton = document.querySelector('.corner-top-right');
+		closeButton.addEventListener('mouseenter', function() {
+			closeButton.src = './gfx/corner-top-right-hover.png';
+		});
+		closeButton.addEventListener('mouseleave', function() {
+			closeButton.src = './gfx/corner-top-right.png';
+		});
+	</script>
+</div>
+<script>
+	function getViewportWidth() {
+		return window.innerWidth;
+	}
+
+	function getViewportHeight() {
+		return window.innerHeight;
+	}
+
+	function onWindowResize(dotNetHelper) {
+		let resizeTimeout;
+		window.addEventListener('resize', () => {
+			clearTimeout(resizeTimeout);
+			resizeTimeout = setTimeout(() => {
+				dotNetHelper.invokeMethodAsync('OnWindowResize');
+			}, 100); // 100ms delay
+		});
+	}
+	
+</script>
+
+@code{
+	private int whiteBorder = 40;
+	private bool visible = false;
+	public void Show() {
+		visible = true;
+	}
+	public void Hide() {
+		visible = false;
+	}
+	[Parameter]
+	public Photograph photograph { get; set; }
+
+	private Photo? photo;
+
+	public Size elementSize = new Size(800, 600);
+	public Size maxPhotoSize = new Size(20, 20);
+
+	private DotNetObjectReference<PhotoEnlarge>? dotNetHelper;
+	protected override async Task OnAfterRenderAsync(bool firstRender) {
+		if(firstRender) {
+			dotNetHelper = DotNetObjectReference.Create(this);
+			await JSRuntime.InvokeVoidAsync("onWindowResize", dotNetHelper);
+			await CalculateElementSize();
+			StateHasChanged();
+		}
+	}
+	[JSInvokable]
+	public async Task OnWindowResize() {
+		await CalculateElementSize();
+		StateHasChanged();
+	}
+	private async Task CalculateElementSize() {
+		// Get size of the whole viewport
+		var viewportWidth = (int)await JSRuntime.InvokeAsync<double>("getViewportWidth", Array.Empty<object>());
+		var viewportHeight = (int)await JSRuntime.InvokeAsync<double>("getViewportHeight", Array.Empty<object>());
+
+		int horizontalPadding = 80;
+		int verticalPadding = 80;
+
+		if(viewportWidth < 900) {
+            horizontalPadding = 20;
+			verticalPadding = 20;
+        }
+
+		// Calculate the size of the PhotoEnlarge element, which is 100vh - 80px and 100vw - 80px
+		elementSize = new Size(viewportWidth - horizontalPadding, viewportHeight - verticalPadding);
+
+		if(elementSize.Width < 800) {
+			maxPhotoSize.Width = elementSize.Width - 120;
+			whiteBorder = 10;
+		}
+		else if(elementSize.Width < 900) {
+			whiteBorder = 10;
+			maxPhotoSize.Width = 800;
+		}
+		else {
+			// Calculate it so that the description is at least 300px wide, and the photo takes the rest
+			maxPhotoSize.Width = elementSize.Width - 300;
+		}
+		maxPhotoSize.Height = elementSize.Height - 120;
+		Console.WriteLine("Element size: " + elementSize.Width + "x" + elementSize.Height);
+		Console.WriteLine("Max photo size: " + maxPhotoSize.Width + "x" + maxPhotoSize.Height);
+
+		if(photo != null){
+		  photo.TriggerStateChange();
+		}
+
+	}
+	protected void DownloadPhoto() {
+		string downloadURL = photograph.webPath;
+		JSRuntime.InvokeAsync<object>("open", downloadURL, "_blank");
+	}
+	public void TriggerStateChange() {
+		Console.WriteLine("Triggering Photo Enlarge state change");
+		StateHasChanged();
+
+		if(photo != null) {
+			photo.TriggerStateChange();
+		}
+	}
+}

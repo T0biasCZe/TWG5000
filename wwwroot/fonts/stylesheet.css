@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'Cool jazz';
+    src: local('Cool jazz'), local('Cooljazz'),
+        url('Cooljazz.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+

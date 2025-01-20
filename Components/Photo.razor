@@ -1,0 +1,79 @@
+﻿<!--<div class="photoGraphBody">
+  <div class="photoGraph" style="border: @(whiteBorder)px solid white; @(enlargeOnHover ? "transform: scale(1.1);" : "")">
+	<span class="photoGraphTitle">@photograph.title</span>
+	<img src="@photograph.webPath" alt="@photograph.title" />
+  </div>
+</div>-->
+
+<div @onclick="HandleClick" style="width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class="photoGraphBody @(enlargeOnHover ? "photoEnlargeOnHover" : "")">
+  <span class="photoGraphTitle">@photograph.title</span>
+  <div style="border: @(whiteBorder)px solid white; width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class='photoGraph'>
+	  <img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px;" />
+  </div>
+</div>
+
+@code {
+	[Parameter]
+	public Photograph photograph { get; set; }
+	[Parameter]
+	public int whiteBorder { get; set; }
+	[Parameter]
+	public bool enlargeOnHover { get; set; }
+	[Parameter]
+	public required Size maxSize { get; set; }
+
+	public enum UsedQuality {
+		Tiny,
+		Medium,
+		Full
+	}
+	[Parameter]
+	public UsedQuality quality { get; set; } = UsedQuality.Tiny;
+
+
+	private string usedWebPath => quality switch {
+        UsedQuality.Tiny => photograph.webPathTiny,
+        UsedQuality.Medium => photograph.webPathMedium,
+        _ => photograph.webPath
+    };
+
+
+	private Size calculatedSize;
+	private double aspectRatio;
+
+	protected override void OnParametersSet() {
+		calculatedSize = CalculateSize(photograph.size, maxSize);
+	}
+
+	private Size CalculateSize(Size originalSize, Size maxSize) {
+		aspectRatio = (double)originalSize.Width / originalSize.Height;
+
+		double width = originalSize.Width;
+		double height = originalSize.Height;
+
+		if(width > maxSize.Width) {
+			width = maxSize.Width;
+			height = (int)(width / aspectRatio);
+		}
+
+		if(height > maxSize.Height) {
+			height = maxSize.Height;
+			width = (int)(height * aspectRatio);
+		}
+
+		return new Size((int)width + whiteBorder, (int)height + whiteBorder);
+	}
+
+	[Parameter] public EventCallback<Photograph> OnClick { get; set; }
+
+	private void HandleClick() {
+		Console.WriteLine($"Photo clicked: {photograph.fileName}");
+		OnClick.InvokeAsync(photograph);
+	}
+	public void TriggerStateChange() {
+		Console.WriteLine("Triggering Photo state change");
+		calculatedSize = CalculateSize(photograph.size, maxSize);
+		StateHasChanged();
+	}
+
+}

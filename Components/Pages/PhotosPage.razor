@@ -1,0 +1,129 @@
+﻿@page "/photos/{GalleryPath}"
+@layout NoMenuLayout
+@rendermode InteractiveServer
+@using Directory = System.IO.Directory;
+@using PSC.Blazor.Components.BrowserDetect
+<link href="PhotosPage.css" rel="stylesheet" />
+
+@if(error != "") {
+	<div class="error">
+	  <img src="/gfx/error.ico" style="width: 32px"/>
+	  <div>@error</div>
+	</div>
+}
+
+<div class="header">
+	<h1>@(directory.Title.Length > 1 ? directory.Title : GalleryPath)</h1>
+	<p>@directory.description</p>
+	<hr />
+</div>
+<div class="gallery">
+	@foreach (var subDir in directory.subDirectories) {
+		foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
+			<Photo photograph="@photo" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" />
+		}
+	}
+</div>
+
+<div class="footer">
+	<hr />
+	<p>Tobik Web Gallery 5000</p>
+	<p>© 2024 - 2025 T0biasCZe</p>
+	<div class="buttons8831">
+		<img src="/gfx/buttons/Blazor.png" />
+		<img src="/gfx/buttons/kofola2.png" />
+		<img src="/gfx/buttons/made_with_windows.gif" />
+		<img src="/gfx/buttons/unraid2.png" />
+		<img src="/gfx/buttons/Arch.png" />
+		<img src="/gfx/buttons/winserver2022.png" />
+		<img src="/gfx/buttons/made_with_windows.png" />
+		<img src="/gfx/buttons/wmp.png" />
+		<img src="/gfx/buttons/iso8601.png" />
+
+		@if (Info?.BrowserName.Contains("Firefox") == true){
+			<img src="/gfx/buttons/optimalizedforfirefox.gif" />
+		}
+		else {
+			if (Info?.DeviceType == "Phone") {
+				<a href="https://www.mozilla.org/cs/firefox/browsers/mobile/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+			}
+			else {
+				<a href="https://www.mozilla.org/cs/firefox/new/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+			}
+		}
+	</div>
+</div>
+<PhotoEnlarge @ref="photoEnlarge" />
+
+
+
+<BrowserDetect @bind-BrowserInfo="@Info"/>
+@code {
+	Size maxPhotoSize = new Size(400, 300);
+	string error = "";
+	[Parameter] public required string GalleryPath { get; set; }
+	Models.Directory directory = new Models.Directory();
+
+	public BrowserInfo? Info { get; set; }
+
+	public static string rootPath = "";
+	public static string rootPathWeb = "";
+
+	protected override void OnInitialized() {
+		string baseDirectory = AppContext.BaseDirectory;
+
+		//check if file "startDir.txt" exists next to the program exe
+		string rootPathFile = Path.Combine(baseDirectory, "rootPath.txt");
+		if(System.IO.File.Exists(rootPathFile)) {
+			Console.WriteLine("Root path found");
+			rootPath = System.IO.File.ReadAllText(rootPathFile);
+		}
+		else {
+			Console.WriteLine("Root path not found");
+		}
+
+		// Check if file "rootPathWeb.txt" exists next to the program exe
+		string rootPathWebFile = Path.Combine(baseDirectory, "rootPathWeb.txt");
+		if(System.IO.File.Exists(rootPathWebFile)) {
+			Console.WriteLine("Root path web found");
+			rootPathWeb = System.IO.File.ReadAllText(rootPathWebFile);
+		}
+		else {
+			Console.WriteLine("Root path web not found");
+		}
+
+		if(string.IsNullOrEmpty(rootPath)) {
+			error = "Nelze načíst fotografie, protože program nemá nastaven kořenový adresář se zdrojem fotografií<br>" +  
+			"Unable to load photographs, because the program doesnt have root directory setup";
+			return;
+		}
+		if(string.IsNullOrEmpty(rootPathWeb)) {
+			error = "Nelze načíst fotografie, protože program nemá nastaven kořenový adresář pro web<br>" +  
+			"Unable to load photographs, because the program doesnt have root directory setup for web";
+			return;
+		}
+
+		string fullPath = rootPath + "\\" + GalleryPath + "\\Photos";
+		//check if the path exists
+		if(!Directory.Exists(fullPath)) {
+			error = "Nelze načíst fotografie, protože na specifikované adrese není žádná fotogalerie<br>" +  
+			"Unable to load photographs, because there is no gallery at the specified address";
+			return;
+		}
+
+		Console.WriteLine("Loading directory: " + fullPath);
+		directory = Models.Directory.LoadDirectory(fullPath);
+	}
+
+	private PhotoEnlarge? photoEnlarge;
+	protected void PhotoClicked(Photograph photo) {
+		Console.WriteLine("photospage.razor, PhotoClicked");
+		if (photoEnlarge == null){
+			Console.WriteLine("PhotoEnlarge is null");
+			return;
+		}
+		photoEnlarge.photograph = photo;
+		photoEnlarge.Show();
+		photoEnlarge.TriggerStateChange(); // Call the new method to trigger state change
+	}
+}

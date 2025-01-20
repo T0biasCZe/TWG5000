@@ -1,0 +1,221 @@
+﻿/* --------------------------------- */
+/*          Photo component          */
+/* --------------------------------- */
+.photoGraphBody {
+    width: 300px; /* Set a fixed width */
+    height: 400px; /* Set a fixed height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px;
+    box-shadow: 10px 10px 5px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+.photoGraph {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+@font-face {
+    font-family: 'Cool jazz';
+    src: local('Cool jazz'), local('Cooljazz'), url('/fonts/Cooljazz.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.photoGraphTitle {
+    color: black;
+    font-size: 11pt;
+    font-family: 'Cool jazz';
+    position: absolute;
+    z-index: 999;
+    top: 1px;
+    left: 10px;
+}
+.photoEnlargeOnHover {
+    transform: unset;
+    transition: transform 0.2s;
+}
+.photoEnlargeOnHover:hover{
+    transform: scale(1.05);
+    transition: transform 0.2s;
+}
+
+@media (max-width: 900px) {
+}
+/* --------------------------------- */
+/*            PhotosPage             */
+/* --------------------------------- */
+.page {
+    background-image: url("gfx/corkboard4x.png");
+    background-repeat: repeat;
+    background-size: 240px;
+}
+
+
+/* --------------------------------- */
+/*           PhotoEnlarge            */
+/* --------------------------------- */
+.windowsWindow {
+    position: fixed;
+    width: 80vw;
+    height: 80vh;
+    top: 10vh;
+    right: 10vw;
+    left: 10vw;
+    width: calc(100% - 80px);
+    height: calc(100% - 80px);
+    top: 40px;
+    left: 40px;
+    right: 40px;
+    background-color: transparent;
+    z-index: 9999999
+}
+@media (max-width: 900px) {
+    .windowsWindow {
+        width: calc(100% - 40px);
+        height: calc(100% - 40px);
+        top: 20px;
+        left: 20px;
+        right: 20px;
+    }
+}
+
+.windowContent {
+    backdrop-filter: blur(10px);
+    width: calc(100% - 24px);
+    height: calc(100% - 24px);
+    margin-left: 12px;
+    margin-top: 12px;
+    position: relative; /* Ensure the child elements are positioned relative to this container */
+    background-image: url("./gfx/AeroPeek.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    display: flex;
+    flex-wrap: wrap;
+    /*justify-content: space-between;*/
+    gap: 20px; /* Optional spacing between columns */
+}
+
+.windowPhotograph{
+    margin-top: 16px;
+    margin-left: 16px;
+}
+.windowsPhotographInfo {
+    margin-left: 10px;
+    overflow-y: auto;
+    max-height: 90%;
+    color: black;
+    text-shadow: 1px 1px 4px white, 2px 2px 6px white;
+}
+
+.exifButton img {
+    position: absolute;
+    margin-top: -20px;
+    margin-left: -12px;
+    width: 32px;
+    height: 32px;
+}
+
+.exifButton img:hover {
+    /*add glow css filter*/
+    filter: drop-shadow(0 0 5px #fff) brightness(1.2);
+}
+
+.exifButton img:active {
+    /*add glow css filter*/
+    filter: drop-shadow(0 0 8px #fff) brightness(0.6);
+}
+
+@media (max-width: 900px) {
+    .windowsPhotographInfo {
+        overflow-y: visible;
+    }
+    .windowPhotograph {
+        margin-top: 20px;
+        margin-left: 4px;
+    }
+    .windowContent {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+}
+
+
+img.windowsdeco {
+    position: absolute;
+    image-rendering: pixelated;
+}
+.corner-top-left {
+    width: 122px;
+    height: 122px;
+    top: 0;
+    left: 0;
+}
+
+.corner-top-right {
+    width: 122px;
+    height: 122px;
+    top: 0;
+    right: 0;
+    cursor: pointer;
+}
+
+.corner-bottom-left {
+    width: 122px;
+    height: 122px;
+    bottom: 0;
+    left: 0;
+}
+
+.corner-bottom-right {
+    width: 122px;
+    height: 122px;
+    bottom: 0;
+    right: 0;
+}
+
+.border-top {
+    height: 12px;
+    width: calc(100% - 224px);
+    top: 0px;
+    left: 112px;
+    right: 112px;
+    background: url('./gfx/border-top.png') repeat-x;
+}
+
+.border-bottom {
+    height: 12px;
+    width: calc(100% - 224px);
+    bottom: 0px;
+    left: 112px;
+    right: 112px;
+    background: url('./gfx/border-bottom.png') repeat-x;
+}
+
+.border-left {
+    width: 12px;
+    height: calc(100% - 224px);
+    left: 0px;
+    top: 112px;
+    bottom: 112px;
+    background: url('./gfx/border-left.png') repeat-y;
+}
+
+.border-right {
+    width: 12px;
+    height: calc(100% - 224px);
+    right: 0px;
+    top: 112px;
+    bottom: 112px;
+    background: url('./gfx/border-right.png') repeat-y;
+}
