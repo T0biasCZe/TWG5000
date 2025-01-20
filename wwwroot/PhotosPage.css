@@ -58,9 +58,21 @@
     background-image: url("gfx/corkboard4x.png");
     background-repeat: repeat;
     background-size: 240px;
+    margin-bottom: -10px;
+    padding-bottom: 30px;
 }
-
-
+.footer{
+    text-align: center;
+    padding-bottom: 20px;
+    padding-top: 20px;
+}
+.footer .programName {
+    font-size: 16pt;
+    font-weight: bold;
+    font-family: 'Cool jazz';
+    color: black;
+    margin-bottom: -4px;
+}
 /* --------------------------------- */
 /*           PhotoEnlarge            */
 /* --------------------------------- */

@@ -62,13 +62,15 @@ namespace TWG5000.Models {
 					//Console.WriteLine(tag.Name + ": " + tag.Description);
 
 					if(tag.Name == "Date/Time Original") {
-						DateTime.TryParse(tag.Description, out photograph.dateTaken);
+						Console.WriteLine("Date/Time Original: " + tag.Description);
+						DateTime.TryParseExact(tag.Description, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateTaken);
 					}
 					if(tag.Name == "Date/Time Digitized") {
-						DateTime.TryParse(tag.Description, out photograph.dateDigitized);
+						DateTime.TryParseExact(tag.Description, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateDigitized);
 					}
 					if(tag.Name == "Date/Time") {
-						DateTime.TryParse(tag.Description, out photograph.dateEdited);
+
+						DateTime.TryParseExact(tag.Description, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateEdited);
 					}
 
 					//parse coordinates

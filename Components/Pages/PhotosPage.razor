@@ -5,6 +5,9 @@
 @using PSC.Blazor.Components.BrowserDetect
 <link href="PhotosPage.css" rel="stylesheet" />
 
+<div class="page">
+<div class="content px-4">
+
 @if(error != "") {
 	<div class="error">
 	  <img src="/gfx/error.ico" style="width: 32px"/>
@@ -24,10 +27,10 @@
 		}
 	}
 </div>
-
+</div> <!--close page-->
+</div> <!--close content-->
 <div class="footer">
-	<hr />
-	<p>Tobik Web Gallery 5000</p>
+	<p class="programName">Tobik Web Gallery 5000</p>
 	<p>© 2024 - 2025 T0biasCZe</p>
 	<div class="buttons8831">
 		<img src="/gfx/buttons/Blazor.png" />
