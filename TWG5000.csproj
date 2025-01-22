@@ -4,9 +4,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Blazor3D" Version="0.1.42" />
     <PackageReference Include="MetadataExtractor" Version="2.8.1" />
     <PackageReference Include="PSC.Blazor.Components.BrowserDetect" Version="1.0.14" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.1" />

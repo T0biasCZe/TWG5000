@@ -1,0 +1,139 @@
+﻿@page "/photos/{GalleryPath}/login"
+@layout NoMenuLayout
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+
+<h3>Přihlášení k galerii fotografií</h3>
+<h1>@GalleryPath</h1>
+
+<h4 id="loginprompt">Zadejte přístupový kód</h4>
+    <label for="password" id="kodlabel">Kód:</label><br>
+    <input type="password" id="password" name="password" @bind="enteredPassword">
+    <button type="button" id="showPassword"><img class="showpassimg" src="./gfx/imageres_82.png"></button><br><br>
+    <button @onclick="Login">Prihlasit</button>
+    <script>
+        /*on click the button, toggle the password visibility*/
+        document.getElementById('showPassword').addEventListener('click', function() {
+            var passwordField = document.getElementById('password');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+            } else {
+                passwordField.type = 'password';
+            }
+        });
+    </script>
+    <div style="display: @incorrectPassword">
+      <p style="color: red;">Špatný kód</p>
+    </div>
+<style>
+    #showPassword{
+        display: inline-block;
+        height: 24px;
+        width: 24px;
+        transform: scale(1.25);
+        background: none;
+        border: none;
+    }
+    #showPassword img{
+        display: inline-block;
+        transform: scale(22);
+        width: 1px;
+        height: 1px;
+        margin-left: 1px;
+        margin-top: -7px;
+        margin-bottom: -4px;
+        vertical-align: middle;
+    }
+    #showPassword img:hover{
+        filter: brightness(1.2);
+        background: #ffffff66;
+        border-radius: 0.2px;
+    }
+    #showPassword img:active{
+        filter: brightness(0.7);
+        background: #00000066;
+        border-radius: 0.2px;
+    }
+
+    @@media screen and (max-width: 640px) {
+        #password{
+            width: 70%;
+            font-size: 1.6em;
+        }
+        #kodlabel{
+            font-size: 1.6em;
+        }
+        #submit{
+            font-size: 1.4em;
+        }
+        #loginprompt{
+            font-size: 1.8em;
+        }
+
+        #showPassword{
+            transform: scale(1.8);
+        }
+        #showPassword img{
+            margin-top: -10px;
+        }
+    }
+</style>
+
+<script>
+    function NavigateTo(url) {
+        //navigate to the url, on the same domainm
+        window.location.href = url;
+    }
+</script>
+
+@code{
+    [Parameter]
+    public string GalleryPath { get; set; }
+    private string enteredPassword = "";
+    private string incorrectPassword = "none";
+
+    protected override void OnInitialized(){
+        Console.WriteLine("GalleryPath: " + GalleryPath);
+    }
+    Dictionary<string, string> passwords = new Dictionary<string, string>(); //the first string is password, and the second is user of the password, however its not used in the code (just for future use)
+
+    private void Login() {
+        string passwordFile = Path.Combine(Program.rootPath, GalleryPath, "password.csv");
+        if(File.Exists(passwordFile)) {
+            Console.WriteLine("password.csv found");
+            passwords = File.ReadAllLines(passwordFile).Select(line => line.Split(';')).ToDictionary(line => line[0], line => line[1]);
+            if(passwords.ContainsKey(enteredPassword)) {
+                //password correct, redirect to the gallery
+                Console.WriteLine("password correct");
+                string navigateUrl = "photos/" + GalleryPath + "?psw=" + enteredPassword;
+                Console.WriteLine("Navigating to: " + navigateUrl);
+                AccessLog("Uspesne prihlaseni k galerii", enteredPassword);
+                NavigationManager.NavigateTo(navigateUrl, forceLoad: true);
+            }
+            else {
+                //password incorrect, show error message
+                Console.WriteLine("password incorrect");
+                AccessLog("Pokus o prihlaseni se spatnym heslem", enteredPassword);
+
+                incorrectPassword = "block";
+            }
+        }
+        else {
+            //gallery not password protected, redirect to the gallery
+            Console.WriteLine("password.csv not found, assuming gallery not password protected");
+            string navigateUrl = "photos/" + GalleryPath;
+            Console.WriteLine("Navigating to: " + navigateUrl);
+            NavigationManager.NavigateTo(navigateUrl, forceLoad: true);
+            AccessLog("Prihlasovani k nezaheslovane galerii", enteredPassword);
+        }
+    }
+    public void AccessLog(string zprava, string heslo) {
+        HttpContext context = HttpContextAccessor.HttpContext;
+        string ip = Utils.GetUserIpAddress(context);
+        string userAgent = context.Request.Headers["User-Agent"];
+        string referer = context.Request.Headers["Referer"];
+        string url = context.Request.Path;
+        AccessLogger.Log(ip, url, userAgent, referer, heslo, zprava);
+    }
+}

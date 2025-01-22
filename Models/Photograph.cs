@@ -10,7 +10,7 @@ using Image = System.Drawing.Image;
 using Directory = System.IO.Directory;
 namespace TWG5000.Models {
 	public class Photograph {
-		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".gif", ".bmp", ".tiff" };
+		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".gif", ".bmp", ".tiff", ".glb"};
 		public string filePath = "";
 		public string webPath = "";
 		public string webPathTiny = "";
@@ -20,8 +20,9 @@ namespace TWG5000.Models {
 		public string description = "";
 		public string author = "";
 		public List<string> keywords = new List<string>();
+		public bool is3D = false;
 
-		public DateTime dateTaken;
+        public DateTime dateTaken;
 		public DateTime dateDigitized;
 		public DateTime dateModified; //date of the windows file modification
 		public DateTime dateCreated;
@@ -40,6 +41,17 @@ namespace TWG5000.Models {
 			FileInfo fileInfo = new FileInfo(path);
 			photograph.fileName = fileInfo.Name;
 			//load the exif from the file itself
+			if(fileInfo.Name.Contains(".glb")) {
+				Console.WriteLine("Skipping exif for embed file: " + path);
+				Console.WriteLine("Skipping exif for embed file: " + path);
+				Console.WriteLine("Skipping exif for embed file: " + path);
+				Console.WriteLine("Skipping exif for embed file: " + path);
+				Console.WriteLine("Skipping exif for embed file: " + path);
+				//read the content of the file and store it in the embedCode
+				photograph.size = new Size(1600, 1200);
+				photograph.is3D = true;
+				goto skipmeta;
+			}
 			Console.WriteLine("Loading exif from file: " + path);
 			photograph.directories = ImageMetadataReader.ReadMetadata(path);
 			foreach(MetadataExtractor.Directory directory in photograph.directories) {
@@ -49,16 +61,16 @@ namespace TWG5000.Models {
 					if(tag.Name == "Red TRC") {
 						photograph.exif += "Red TRC SKIPPED\n";
 						continue;
-                    };
-                    if(tag.Name == "Green TRC") {
-                        photograph.exif += "Green TRC SKIPPED\n";
-                        continue;
-                    };
-                    if(tag.Name == "Blue TRC") {
-                        photograph.exif += "Blue TRC SKIPPED\n";
-                        continue;
-                    };
-                    photograph.exif += tag.Name + ": " + tag.Description + "\n";
+					};
+					if(tag.Name == "Green TRC") {
+						photograph.exif += "Green TRC SKIPPED\n";
+						continue;
+					};
+					if(tag.Name == "Blue TRC") {
+						photograph.exif += "Blue TRC SKIPPED\n";
+						continue;
+					};
+					photograph.exif += tag.Name + ": " + tag.Description + "\n";
 					//Console.WriteLine(tag.Name + ": " + tag.Description);
 
 					if(tag.Name == "Date/Time Original") {
@@ -85,12 +97,13 @@ namespace TWG5000.Models {
 
 
 			Console.WriteLine("Exif loaded");
-			//load size
-			photograph.size = GetSize(path);
+            //load size
+            photograph.size = GetSize(path);
 			Console.WriteLine("Size loaded: " + photograph.size.Width + "x" + photograph.size.Height);
 
-			// Check if file metainfo.csv exists in the subdirectory
-			string metainfoPath = Path.Combine(fileInfo.FullName + ".csv");
+        skipmeta:
+            // Check if file metainfo.csv exists in the subdirectory
+            string metainfoPath = Path.Combine(fileInfo.FullName + ".csv");
 			if(File.Exists(metainfoPath)) {
 				Console.WriteLine("metainfo found");
 				photograph.metainfo = File.ReadAllLines(metainfoPath)
@@ -98,41 +111,49 @@ namespace TWG5000.Models {
 					.ToDictionary(line => line[0], line => line[1]);
 			}
 			if(photograph.metainfo.ContainsKey("title")) {
-				photograph.title = photograph.metainfo["title"];
+				if(photograph.metainfo["title"].Length > 0)
+					photograph.title = photograph.metainfo["title"];
 			}
 			if(photograph.metainfo.ContainsKey("description")) {
-				photograph.description = photograph.metainfo["description"];
+				if(photograph.metainfo["description"].Length > 0)
+					photograph.description = photograph.metainfo["description"];
 			}
 			if(photograph.metainfo.ContainsKey("author")) {
-				photograph.author = photograph.metainfo["author"];
+				if(photograph.metainfo["author"].Length > 0)
+					photograph.author = photograph.metainfo["author"];
 			}
 			if(photograph.metainfo.ContainsKey("keywords")) {
+				if(photograph.metainfo["keywords"].Length > 0)
 				photograph.keywords = photograph.metainfo["keywords"].Split(',').ToList();
 			}
 			if(photograph.metainfo.ContainsKey("dateTaken")) {
-				DateTime.TryParse(photograph.metainfo["dateTaken"], out photograph.dateTaken);
+				if(photograph.metainfo["dateTaken"].Length > 0)
+					DateTime.TryParseExact(photograph.metainfo["dateTaken"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateTaken);
 			}
 			if(photograph.metainfo.ContainsKey("dateDigitized")) {
-				DateTime.TryParse(photograph.metainfo["dateDigitized"], out photograph.dateDigitized);
+				DateTime.TryParseExact(photograph.metainfo["dateDigitized"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateDigitized);
 			}
 			if(photograph.metainfo.ContainsKey("dateModified")) {
-				DateTime.TryParse(photograph.metainfo["dateModified"], out photograph.dateModified);
+				DateTime.TryParseExact(photograph.metainfo["dateModified"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateModified);
 			}
 			if(photograph.metainfo.ContainsKey("dateCreated")) {
-				DateTime.TryParse(photograph.metainfo["dateCreated"], out photograph.dateCreated);
+				DateTime.TryParseExact(photograph.metainfo["dateCreated"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateCreated);
 			}
 			if(photograph.metainfo.ContainsKey("coordinates")) {
-				string[] coordinates = photograph.metainfo["coordinates"].Split(',');
-				if(coordinates.Length == 2) {
-					float.TryParse(coordinates[0], out photograph.coordinates.X);
-					float.TryParse(coordinates[1], out photograph.coordinates.Y);
+				if(photograph.metainfo["coordinates"].Length > 1) {
+					photograph.coordinates = new Vector2(0, 0);
+					string[] coordinates = photograph.metainfo["coordinates"].Split(',');
+					if(coordinates.Length == 2) {
+						float.TryParse(coordinates[0], out photograph.coordinates.X);
+						float.TryParse(coordinates[1], out photograph.coordinates.Y);
+					}
 				}
 			}
 			if(photograph.metainfo.ContainsKey("cameraModel")) {
-				photograph.cameraModel = photograph.metainfo["cameraModel"];
+				if(photograph.metainfo["cameraModel"].Length > 0)
+					photograph.cameraModel = photograph.metainfo["cameraModel"];
 			}
-
-			photograph.filePath = path;
+            photograph.filePath = path;
 			string filePathWithoutRoot = path.Substring(PhotosPage.rootPath.Length);
 			photograph.webPath = PhotosPage.rootPathWeb + "/" + filePathWithoutRoot.Replace('\\', '/');
 			
@@ -182,22 +203,8 @@ namespace TWG5000.Models {
 			return $"{latitude}, {longitude}";
 		}
 		public static List<Photograph> SortPhotoGraphByDate(List<Photograph> photographs) {
-			//sort by date taken, if not available, by date digitized, if not available, by date modified, if not available, by date created
-			photographs.Sort((a, b) => {
-				if(a.dateTaken != DateTime.MinValue && b.dateTaken != DateTime.MinValue) {
-					return a.dateTaken.CompareTo(b.dateTaken);
-				}
-				if(a.dateDigitized != DateTime.MinValue && b.dateDigitized != DateTime.MinValue) {
-					return a.dateDigitized.CompareTo(b.dateDigitized);
-				}
-				if(a.dateModified != DateTime.MinValue && b.dateModified != DateTime.MinValue) {
-					return a.dateModified.CompareTo(b.dateModified);
-				}
-				if(a.dateCreated != DateTime.MinValue && b.dateCreated != DateTime.MinValue) {
-					return a.dateCreated.CompareTo(b.dateCreated);
-				}
-				return 0;
-			});
+			//sort by date taken
+			photographs.Sort((x, y) => DateTime.Compare(x.dateTaken, y.dateTaken));
 			return photographs;
 		}
 

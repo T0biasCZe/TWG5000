@@ -4,14 +4,16 @@
 @using Directory = System.IO.Directory;
 @using PSC.Blazor.Components.BrowserDetect
 <link href="PhotosPage.css" rel="stylesheet" />
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
 
 <div class="page">
 <div class="content px-4">
 
 @if(error != "") {
 	<div class="error">
-	  <img src="/gfx/error.ico" style="width: 32px"/>
-	  <div>@error</div>
+		<img src="/gfx/error.ico" style="width: 32px"/>
+		<div style="color: red; text-shadow: 0px 0px 3px white, 1px 1px 5px white;">@((MarkupString)error)</div>
 	</div>
 }
 
@@ -20,17 +22,40 @@
 	<p>@directory.description</p>
 	<hr />
 </div>
+<div class="mobileWarn" style="display: none; text-shadow: 1px 1px 3px white;">
+	<img src="/gfx/bestviewedondesktop.png" />
+	<p>Prohlížíte galerii na mobilním zařízení.<br />Pro lepší funkčnost prosím otevřete stránku na počítači.</p>
+	<script>
+		//on resize listener, that will show the warn if the width of viewer is smaller than 900px
+		window.addEventListener('resize', function() {
+            if (window.innerWidth < 600) {
+                document.querySelector('.mobileWarn').style.display = 'block';
+            } else {
+                document.querySelector('.mobileWarn').style.display = 'none';
+            }
+        });
+		if (window.innerWidth < 600) {
+			document.querySelector('.mobileWarn').style.display = 'block';
+		} else {
+			document.querySelector('.mobileWarn').style.display = 'none';
+		}
+	</script>
+</div>
 <div class="gallery">
+	@{int index = 0;}
 	@foreach (var subDir in directory.subDirectories) {
-		foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
-			<Photo photograph="@photo" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" />
+		if(AllowLoadingPhotos){
+			foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
+				<Photo photograph="@photo" index="@index" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" showPin/>
+				index++;
+			}
 		}
 	}
 </div>
 </div> <!--close page-->
 </div> <!--close content-->
 <div class="footer">
-	<p class="programName">Tobik Web Gallery 5000</p>
+	<p class="programName"><a href="https://github.com/T0biasCZe/TWG5000/" class="no-a-deco">Tobik Web Gallery 5000</a></p>
 	<p>© 2024 - 2025 T0biasCZe</p>
 	<div class="buttons8831">
 		<img src="/gfx/buttons/Blazor.png" />
@@ -39,7 +64,6 @@
 		<img src="/gfx/buttons/unraid2.png" />
 		<img src="/gfx/buttons/Arch.png" />
 		<img src="/gfx/buttons/winserver2022.png" />
-		<img src="/gfx/buttons/made_with_windows.png" />
 		<img src="/gfx/buttons/wmp.png" />
 		<img src="/gfx/buttons/iso8601.png" />
 
@@ -62,6 +86,7 @@
 
 <BrowserDetect @bind-BrowserInfo="@Info"/>
 @code {
+	private bool AllowLoadingPhotos = false;
 	Size maxPhotoSize = new Size(400, 300);
 	string error = "";
 	[Parameter] public required string GalleryPath { get; set; }
@@ -71,10 +96,11 @@
 
 	public static string rootPath = "";
 	public static string rootPathWeb = "";
+	public string password = "";
 
 	protected override void OnInitialized() {
 		string baseDirectory = AppContext.BaseDirectory;
-
+		 
 		//check if file "startDir.txt" exists next to the program exe
 		string rootPathFile = Path.Combine(baseDirectory, "rootPath.txt");
 		if(System.IO.File.Exists(rootPathFile)) {
@@ -116,6 +142,55 @@
 
 		Console.WriteLine("Loading directory: " + fullPath);
 		directory = Models.Directory.LoadDirectory(fullPath);
+		if(directory.PasswordProtected) {
+			Console.BackgroundColor = ConsoleColor.Yellow;
+			Console.ForegroundColor = ConsoleColor.Black;
+			Console.WriteLine("Password protected gallery");
+			//check if the url contains query parameter "psw"
+			string uri = NavigationManager.Uri;
+			//parse the psw parameter from the url
+			var uriBuilder = new UriBuilder(uri);
+			var query = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
+			password = query.Get("psw");
+			string loginUrl = "photos/" + GalleryPath + "/login";
+			if(string.IsNullOrEmpty(password)) {
+				Console.BackgroundColor = ConsoleColor.Yellow;
+				Console.WriteLine("Password not entered");
+
+				//redirect to the login page
+				//NavigationManager.NavigateTo("photos/" + GalleryPath + "/login");
+				error = $"Tahle fotogalerie požaduje k přístupu heslo.<br>This Photogallery requires password to be entered<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
+				AccessLog("Pokus o načtení galerie bez hesla", "");
+			}
+			else {
+				Console.BackgroundColor = ConsoleColor.Yellow;
+				Console.ForegroundColor = ConsoleColor.Black;
+				Console.WriteLine("Password entered: " + password);
+				//check if the password is correct
+				if(directory.passwords.ContainsKey(password)) {
+					Console.BackgroundColor = ConsoleColor.Green;
+					Console.WriteLine("Password correct");
+					//password correct
+					AllowLoadingPhotos = true;
+					AccessLog("Načtení galerie se správným heslem", password);
+				}
+				else {
+					Console.BackgroundColor = ConsoleColor.Red;
+					Console.WriteLine("Password incorrect");
+					//password incorrect
+					error = $"Nesprávné heslo<br>Incorrect password<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
+					AccessLog("Pokud o načtení se špatným heslem", password);
+				}
+			}
+		}
+		else {
+			AccessLog("Načtení nezaheslované galerie", "");
+			Console.BackgroundColor = ConsoleColor.Green;
+			Console.ForegroundColor = ConsoleColor.Black;
+			Console.WriteLine("Gallery not password protected, allowing load");
+			AllowLoadingPhotos = true;
+		}
+		Console.ResetColor();
 	}
 
 	private PhotoEnlarge? photoEnlarge;
@@ -128,5 +203,13 @@
 		photoEnlarge.photograph = photo;
 		photoEnlarge.Show();
 		photoEnlarge.TriggerStateChange(); // Call the new method to trigger state change
+	}
+	public void AccessLog(string zprava, string heslo) {
+		HttpContext context = HttpContextAccessor.HttpContext;
+		string ip = Utils.GetUserIpAddress(context);
+		string userAgent = context.Request.Headers["User-Agent"];
+		string referer = context.Request.Headers["Referer"];
+		string url = context.Request.Path;
+		AccessLogger.Log(ip, url, userAgent, referer, heslo, zprava);
 	}
 }
