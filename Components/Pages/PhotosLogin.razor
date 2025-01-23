@@ -3,13 +3,13 @@
 @rendermode InteractiveServer
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor HttpContextAccessor
-
+<div style="min-width: 100vw; min-height: 100vh; background-color: white !important;">
 <h3>Přihlášení k galerii fotografií</h3>
 <h1>@GalleryPath</h1>
 
 <h4 id="loginprompt">Zadejte přístupový kód</h4>
     <label for="password" id="kodlabel">Kód:</label><br>
-    <input type="password" id="password" name="password" @bind="enteredPassword">
+    <input type="password" id="password" name="password" @bind="enteredPassword" @onkeydown="HandleKeyDown">
     <button type="button" id="showPassword"><img class="showpassimg" src="./gfx/imageres_82.png"></button><br><br>
     <button @onclick="Login">Prihlasit</button>
     <script>
@@ -26,6 +26,7 @@
     <div style="display: @incorrectPassword">
       <p style="color: red;">Špatný kód</p>
     </div>
+</div>
 <style>
     #showPassword{
         display: inline-block;
@@ -126,6 +127,11 @@
             Console.WriteLine("Navigating to: " + navigateUrl);
             NavigationManager.NavigateTo(navigateUrl, forceLoad: true);
             AccessLog("Prihlasovani k nezaheslovane galerii", enteredPassword);
+        }
+    }
+    private void HandleKeyDown(KeyboardEventArgs e) {
+        if(e.Key == "Enter" || e.Key == "Return") {
+            Login();
         }
     }
     public void AccessLog(string zprava, string heslo) {

@@ -100,9 +100,9 @@ body {
     color: black;
     margin-bottom: -4px;
 }
-.no-a-deco, .no-a-deco:active, no-a-deco:visited{
-    text-decoration: none;
-    color: black;
+.no-a-deco, .no-a-deco:active, .no-a-deco:visited, .no-a-deco:any-link, .no-a-deco:link {
+    text-decoration: none !important;
+    color: black !important;
 }
 .gallery{
     display: grid;

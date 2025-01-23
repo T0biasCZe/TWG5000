@@ -10,16 +10,12 @@
 <div class="page">
 <div class="content px-4">
 
-@if(error != "") {
-	<div class="error">
-		<img src="/gfx/error.ico" style="width: 32px"/>
-		<div style="color: red; text-shadow: 0px 0px 3px white, 1px 1px 5px white;">@((MarkupString)error)</div>
-	</div>
-}
 
 <div class="header">
-	<h1>@(directory.Title.Length > 1 ? directory.Title : GalleryPath)</h1>
-	<p>@directory.description</p>
+	@if(directory != null){
+		<h1>@(directory.Title.Length > 1 ? directory.Title : GalleryPath)</h1>
+		<p>@directory.description</p>
+	}
 	<hr />
 </div>
 <div class="mobileWarn" style="display: none; text-shadow: 1px 1px 3px white;">
@@ -28,12 +24,12 @@
 	<script>
 		//on resize listener, that will show the warn if the width of viewer is smaller than 900px
 		window.addEventListener('resize', function() {
-            if (window.innerWidth < 600) {
-                document.querySelector('.mobileWarn').style.display = 'block';
-            } else {
-                document.querySelector('.mobileWarn').style.display = 'none';
-            }
-        });
+			if (window.innerWidth < 600) {
+				document.querySelector('.mobileWarn').style.display = 'block';
+			} else {
+				document.querySelector('.mobileWarn').style.display = 'none';
+			}
+		});
 		if (window.innerWidth < 600) {
 			document.querySelector('.mobileWarn').style.display = 'block';
 		} else {
@@ -43,13 +39,23 @@
 </div>
 <div class="gallery">
 	@{int index = 0;}
-	@foreach (var subDir in directory.subDirectories) {
-		if(AllowLoadingPhotos){
-			foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
-				<Photo photograph="@photo" index="@index" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" showPin/>
-				index++;
-			}
-		}
+	@if(directory != null){
+	  @foreach (var subDir in directory.subDirectories) {
+		  if(AllowLoadingPhotos){
+			  foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
+				  <Photo photograph="@photo" index="@index" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" showPin/>
+				  index++;
+			  }
+		  }
+	  }
+	  if(AllowLoadingPhotos && index == 0){
+		  <div class="error">
+			  <img src="/gfx/error.ico" style="width: 32px"/>
+			  <div style="color: red; text-shadow: 0px 0px 3px white, 1px 1px 5px white;">Galerie neobsahuje žádné fotografie</div>
+		  </div>
+	  }
+	} else{
+		<p><img style="display: inline;" src="/gfx/busy aero fast.gif" />Fotky se načítají, čekejte prosím</p>
 	}
 </div>
 </div> <!--close page-->
@@ -83,24 +89,25 @@
 <PhotoEnlarge @ref="photoEnlarge" />
 
 
-
 <BrowserDetect @bind-BrowserInfo="@Info"/>
+
 @code {
 	private bool AllowLoadingPhotos = false;
 	Size maxPhotoSize = new Size(400, 300);
 	string error = "";
 	[Parameter] public required string GalleryPath { get; set; }
-	Models.Directory directory = new Models.Directory();
+	Models.Directory directory = null;
 
 	public BrowserInfo? Info { get; set; }
 
 	public static string rootPath = "";
 	public static string rootPathWeb = "";
 	public string password = "";
+	public bool errorOnInit = false;
 
 	protected override void OnInitialized() {
 		string baseDirectory = AppContext.BaseDirectory;
-		 
+
 		//check if file "startDir.txt" exists next to the program exe
 		string rootPathFile = Path.Combine(baseDirectory, "rootPath.txt");
 		if(System.IO.File.Exists(rootPathFile)) {
@@ -124,75 +131,87 @@
 		if(string.IsNullOrEmpty(rootPath)) {
 			error = "Nelze načíst fotografie, protože program nemá nastaven kořenový adresář se zdrojem fotografií<br>" +  
 			"Unable to load photographs, because the program doesnt have root directory setup";
+			errorOnInit = true;
 			return;
 		}
 		if(string.IsNullOrEmpty(rootPathWeb)) {
 			error = "Nelze načíst fotografie, protože program nemá nastaven kořenový adresář pro web<br>" +  
 			"Unable to load photographs, because the program doesnt have root directory setup for web";
+			errorOnInit = true;
 			return;
 		}
 
-		string fullPath = rootPath + "\\" + GalleryPath + "\\Photos";
-		//check if the path exists
-		if(!Directory.Exists(fullPath)) {
-			error = "Nelze načíst fotografie, protože na specifikované adrese není žádná fotogalerie<br>" +  
-			"Unable to load photographs, because there is no gallery at the specified address";
-			return;
-		}
-
-		Console.WriteLine("Loading directory: " + fullPath);
-		directory = Models.Directory.LoadDirectory(fullPath);
-		if(directory.PasswordProtected) {
-			Console.BackgroundColor = ConsoleColor.Yellow;
-			Console.ForegroundColor = ConsoleColor.Black;
-			Console.WriteLine("Password protected gallery");
-			//check if the url contains query parameter "psw"
-			string uri = NavigationManager.Uri;
-			//parse the psw parameter from the url
-			var uriBuilder = new UriBuilder(uri);
-			var query = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
-			password = query.Get("psw");
-			string loginUrl = "photos/" + GalleryPath + "/login";
-			if(string.IsNullOrEmpty(password)) {
-				Console.BackgroundColor = ConsoleColor.Yellow;
-				Console.WriteLine("Password not entered");
-
-				//redirect to the login page
-				//NavigationManager.NavigateTo("photos/" + GalleryPath + "/login");
-				error = $"Tahle fotogalerie požaduje k přístupu heslo.<br>This Photogallery requires password to be entered<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
-				AccessLog("Pokus o načtení galerie bez hesla", "");
+		firstRender = true;
+	}
+	bool firstRender = true;
+	protected async override Task OnAfterRenderAsync(bool firstRender) {
+		if(!errorOnInit && firstRender) {
+			Console.WriteLine("First render");
+			string fullPath = rootPath + "\\" + GalleryPath + "\\Photos";
+			//check if the path exists
+			if(!Directory.Exists(fullPath)) {
+				error = "Nelze načíst fotografie, protože na specifikované adrese není žádná fotogalerie<br>" +
+				"Unable to load photographs, because there is no gallery at the specified address";
+				errorOnInit = true;
+				return;
 			}
-			else {
+			Console.WriteLine("Loading directory: " + fullPath);
+			directory = Models.Directory.LoadDirectory(fullPath);
+			if(directory.PasswordProtected) {
 				Console.BackgroundColor = ConsoleColor.Yellow;
 				Console.ForegroundColor = ConsoleColor.Black;
-				Console.WriteLine("Password entered: " + password);
-				//check if the password is correct
-				if(directory.passwords.ContainsKey(password)) {
-					Console.BackgroundColor = ConsoleColor.Green;
-					Console.WriteLine("Password correct");
-					//password correct
-					AllowLoadingPhotos = true;
-					AccessLog("Načtení galerie se správným heslem", password);
+				Console.WriteLine("Password protected gallery");
+				//check if the url contains query parameter "psw"
+				string uri = NavigationManager.Uri;
+				//parse the psw parameter from the url
+				var uriBuilder = new UriBuilder(uri);
+				var query = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
+				password = query.Get("psw");
+				string loginUrl = "photos/" + GalleryPath + "/login";
+				if(string.IsNullOrEmpty(password)) {
+					Console.BackgroundColor = ConsoleColor.Yellow;
+					Console.WriteLine("Password not entered");
+
+					//redirect to the login page
+					//NavigationManager.NavigateTo("photos/" + GalleryPath + "/login");
+					error = $"Tahle fotogalerie požaduje k přístupu heslo.<br>This Photogallery requires password to be entered<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
+					AccessLog("Pokus o načtení galerie bez hesla", "");
 				}
 				else {
-					Console.BackgroundColor = ConsoleColor.Red;
-					Console.WriteLine("Password incorrect");
-					//password incorrect
-					error = $"Nesprávné heslo<br>Incorrect password<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
-					AccessLog("Pokud o načtení se špatným heslem", password);
+					Console.BackgroundColor = ConsoleColor.Yellow;
+					Console.ForegroundColor = ConsoleColor.Black;
+					Console.WriteLine("Password entered: " + password);
+					//check if the password is correct
+					if(directory.passwords.Any(p => p.password == password)) {
+						Console.BackgroundColor = ConsoleColor.Green;
+						Console.WriteLine("Password correct");
+						//password correct
+						AllowLoadingPhotos = true;
+						AccessLog("Načtení galerie se správným heslem", password);
+					}
+					else {
+						Console.BackgroundColor = ConsoleColor.Red;
+						Console.WriteLine("Password incorrect");
+						//password incorrect
+						error = $"Nesprávné heslo<br>Incorrect password<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
+						AccessLog("Pokud o načtení se špatným heslem", password);
+					}
 				}
 			}
+			else {
+				AccessLog("Načtení nezaheslované galerie", "");
+				Console.BackgroundColor = ConsoleColor.Green;
+				Console.ForegroundColor = ConsoleColor.Black;
+				Console.WriteLine("Gallery not password protected, allowing load");
+				AllowLoadingPhotos = true;
+			}
+			Console.ResetColor();
 		}
 		else {
-			AccessLog("Načtení nezaheslované galerie", "");
-			Console.BackgroundColor = ConsoleColor.Green;
-			Console.ForegroundColor = ConsoleColor.Black;
-			Console.WriteLine("Gallery not password protected, allowing load");
-			AllowLoadingPhotos = true;
+			Console.WriteLine("Not first render");
 		}
-		Console.ResetColor();
+		firstRender = false;
 	}
-
 	private PhotoEnlarge? photoEnlarge;
 	protected void PhotoClicked(Photograph photo) {
 		Console.WriteLine("photospage.razor, PhotoClicked");

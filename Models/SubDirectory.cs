@@ -6,7 +6,7 @@ namespace TWG5000.Models {
 		public string path = "";
 		public int sortIndex = -1;
 		public List<Photograph> photographs = new List<Photograph>();
-		Dictionary<string, string> metainfo = new Dictionary<string, string>();
+		List<Metainfo> metainfo = new List<Metainfo>();
 
 		public static SubDirectory LoadSubDirectory(string path) {
 			Console.WriteLine("Loading subdirectory: " + path);
@@ -19,20 +19,28 @@ namespace TWG5000.Models {
 			if(File.Exists(metainfoPath)) {
 				Console.WriteLine("metainfo.csv found");
 				subDirectory.metainfo = File.ReadAllLines(metainfoPath)
-					.Select(line => line.Split(';'))
-					.ToDictionary(line => line[0], line => line[1]);
+					.Select(line => {
+						var parts = line.Split(';');
+						return new Metainfo(parts[0], parts[1]);
+					}).ToList();
 			}
-			if(subDirectory.metainfo.ContainsKey("title")) {
+
+			var titleMeta = subDirectory.metainfo.FirstOrDefault(m => m.Key == "title");
+			if(titleMeta != null && titleMeta.Value.Length > 0) {
 				Console.WriteLine("title found");
-				subDirectory.name = subDirectory.metainfo["title"];
+				subDirectory.name = titleMeta.Value;
 			}
-			if(subDirectory.metainfo.ContainsKey("description")) {
+
+			var descriptionMeta = subDirectory.metainfo.FirstOrDefault(m => m.Key == "description");
+			if(descriptionMeta != null && descriptionMeta.Value.Length > 0) {
 				Console.WriteLine("description found");
-				subDirectory.description = subDirectory.metainfo["description"];
+				subDirectory.description = descriptionMeta.Value;
 			}
-			if(subDirectory.metainfo.ContainsKey("sortIndex")) {
+
+			var sortIndexMeta = subDirectory.metainfo.FirstOrDefault(m => m.Key == "sortIndex");
+			if(sortIndexMeta != null && sortIndexMeta.Value.Length > 0) {
 				Console.WriteLine("sortIndex found");
-				int.TryParse(subDirectory.metainfo["sortIndex"], out subDirectory.sortIndex);
+				int.TryParse(sortIndexMeta.Value, out subDirectory.sortIndex);
 			}
 
 			// Load photographs

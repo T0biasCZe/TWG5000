@@ -3,6 +3,7 @@ using TWG5000.Components;
 namespace TWG5000 {
     public class Program {
 		public static string rootPath = "";
+		public static string rootPathWeb = "";
 		public static string baseDirectory = AppContext.BaseDirectory;
 		public static void Main(string[] args) {
 			//check if file "startDir.txt" exists next to the program exe
@@ -24,6 +25,16 @@ namespace TWG5000 {
 				Console.WriteLine("Root path not found");
 				Console.WriteLine("Root path not found");
 				Console.ResetColor();
+			}
+			string rootPathWebFile = Path.Combine(baseDirectory, "rootPathWeb.txt");
+			if(System.IO.File.Exists(rootPathWebFile)) {
+				Console.WriteLine("Root path web found");
+				rootPathWeb = System.IO.File.ReadAllText(rootPathWebFile);
+				Console.WriteLine(rootPathWeb);
+			}
+			else {
+				Console.BackgroundColor = ConsoleColor.Red;
+				Console.ForegroundColor = ConsoleColor.White;
 			}
 
 

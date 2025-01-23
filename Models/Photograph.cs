@@ -22,19 +22,19 @@ namespace TWG5000.Models {
 		public List<string> keywords = new List<string>();
 		public bool is3D = false;
 
-        public DateTime dateTaken;
-		public DateTime dateDigitized;
-		public DateTime dateModified; //date of the windows file modification
-		public DateTime dateCreated;
-		public DateTime dateEdited; //date of edit in photo editor like Lightroom
+        public DateTime dateTaken = new DateTime(0);
+		public DateTime dateDigitized = new DateTime(0);
+		public DateTime dateModified = new DateTime(0); //date of the windows file modification
+		public DateTime dateCreated = new DateTime(0);
+		public DateTime dateEdited = new DateTime(0); //date of edit in photo editor like Lightroom
 
 		public Size size = new Size(0, 0);
 		public string exif = "";
 		public Vector2 coordinates = new Vector2(0, 0);
 		public string cameraModel = "";
 
-		Dictionary<string, string> metainfo = new Dictionary<string, string>(); //external meta info from metainfo.csv
-		IEnumerable<MetadataExtractor.Directory> directories;
+		List<Metainfo> metainfo = new List<Metainfo>(); //external meta info from metainfo.csv
+		IEnumerable<MetadataExtractor.Directory> directories = new List<MetadataExtractor.Directory>();
 
 		public static Photograph LoadPhotograph(string path) {
 			Photograph photograph = new Photograph();
@@ -102,67 +102,71 @@ namespace TWG5000.Models {
 			Console.WriteLine("Size loaded: " + photograph.size.Width + "x" + photograph.size.Height);
 
         skipmeta:
-            // Check if file metainfo.csv exists in the subdirectory
-            string metainfoPath = Path.Combine(fileInfo.FullName + ".csv");
+			// Check if file metainfo.csv exists in the subdirectory
+			string metainfoPath = Path.Combine(fileInfo.FullName + ".csv");
 			if(File.Exists(metainfoPath)) {
 				Console.WriteLine("metainfo found");
 				photograph.metainfo = File.ReadAllLines(metainfoPath)
-					.Select(line => line.Split(';'))
-					.ToDictionary(line => line[0], line => line[1]);
+					.Select(line => {
+						var parts = line.Split(';');
+						return new Metainfo(parts[0], parts[1]);
+					}).ToList();
 			}
-			if(photograph.metainfo.ContainsKey("title")) {
-				if(photograph.metainfo["title"].Length > 0)
-					photograph.title = photograph.metainfo["title"];
+			var titleMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "title");
+			if(titleMeta != null && titleMeta.Value.Length > 0) {
+				photograph.title = titleMeta.Value;
 			}
-			if(photograph.metainfo.ContainsKey("description")) {
-				if(photograph.metainfo["description"].Length > 0)
-					photograph.description = photograph.metainfo["description"];
+			var descriptionMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "description");
+			if(descriptionMeta != null && descriptionMeta.Value.Length > 0) {
+				photograph.description = descriptionMeta.Value;
 			}
-			if(photograph.metainfo.ContainsKey("author")) {
-				if(photograph.metainfo["author"].Length > 0)
-					photograph.author = photograph.metainfo["author"];
+			var authorMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "author");
+			if(authorMeta != null && authorMeta.Value.Length > 0) {
+				photograph.author = authorMeta.Value;
 			}
-			if(photograph.metainfo.ContainsKey("keywords")) {
-				if(photograph.metainfo["keywords"].Length > 0)
-				photograph.keywords = photograph.metainfo["keywords"].Split(',').ToList();
+			var keywordsMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "keywords");
+			if(keywordsMeta != null && keywordsMeta.Value.Length > 0) {
+				photograph.keywords = keywordsMeta.Value.Split(',').ToList();
 			}
-			if(photograph.metainfo.ContainsKey("dateTaken")) {
-				if(photograph.metainfo["dateTaken"].Length > 0)
-					DateTime.TryParseExact(photograph.metainfo["dateTaken"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateTaken);
+			var dateTakenMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "dateTaken");
+			if(dateTakenMeta != null && dateTakenMeta.Value.Length > 0) {
+				DateTime.TryParseExact(dateTakenMeta.Value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateTaken);
 			}
-			if(photograph.metainfo.ContainsKey("dateDigitized")) {
-				DateTime.TryParseExact(photograph.metainfo["dateDigitized"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateDigitized);
+			var dateDigitizedMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "dateDigitized");
+			if(dateDigitizedMeta != null && dateDigitizedMeta.Value.Length > 0) {
+				DateTime.TryParseExact(dateDigitizedMeta.Value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateDigitized);
 			}
-			if(photograph.metainfo.ContainsKey("dateModified")) {
-				DateTime.TryParseExact(photograph.metainfo["dateModified"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateModified);
+			var dateModifiedMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "dateModified");
+			if(dateModifiedMeta != null && dateModifiedMeta.Value.Length > 0) {
+				DateTime.TryParseExact(dateModifiedMeta.Value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateModified);
 			}
-			if(photograph.metainfo.ContainsKey("dateCreated")) {
-				DateTime.TryParseExact(photograph.metainfo["dateCreated"], "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateCreated);
+			var dateCreatedMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "dateCreated");
+			if(dateCreatedMeta != null && dateCreatedMeta.Value.Length > 0) {
+				DateTime.TryParseExact(dateCreatedMeta.Value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateCreated);
 			}
-			if(photograph.metainfo.ContainsKey("coordinates")) {
-				if(photograph.metainfo["coordinates"].Length > 1) {
-					photograph.coordinates = new Vector2(0, 0);
-					string[] coordinates = photograph.metainfo["coordinates"].Split(',');
-					if(coordinates.Length == 2) {
-						float.TryParse(coordinates[0], out photograph.coordinates.X);
-						float.TryParse(coordinates[1], out photograph.coordinates.Y);
-					}
+			var coordinatesMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "coordinates");
+			if(coordinatesMeta != null && coordinatesMeta.Value.Length > 1) {
+				photograph.coordinates = new Vector2(0, 0);
+				string[] coordinates = coordinatesMeta.Value.Split(',');
+				if(coordinates.Length == 2) {
+					float.TryParse(coordinates[0], out photograph.coordinates.X);
+					float.TryParse(coordinates[1], out photograph.coordinates.Y);
 				}
 			}
-			if(photograph.metainfo.ContainsKey("cameraModel")) {
-				if(photograph.metainfo["cameraModel"].Length > 0)
-					photograph.cameraModel = photograph.metainfo["cameraModel"];
+			var cameraModelMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "cameraModel");
+			if(cameraModelMeta != null && cameraModelMeta.Value.Length > 0) {
+				photograph.cameraModel = cameraModelMeta.Value;
 			}
-            photograph.filePath = path;
-			string filePathWithoutRoot = path.Substring(PhotosPage.rootPath.Length);
-			photograph.webPath = PhotosPage.rootPathWeb + "/" + filePathWithoutRoot.Replace('\\', '/');
+			photograph.filePath = path;
+			string filePathWithoutRoot = path.Substring(Program.rootPath.Length);
+			photograph.webPath = Program.rootPathWeb + "/" + filePathWithoutRoot.Replace('\\', '/');
 			
 			//check if files FILENAME_tiny.jpg and FILENAME_medium.jpg exist in directory "previews" next to the original file
 			photograph.webPathMedium = photograph.webPath;
 			photograph.webPathTiny = photograph.webPath;
 			string previewsPath = Path.Combine(fileInfo.DirectoryName, "previews");
 			string filePathWithoutRootWithoutFileName = filePathWithoutRoot.Substring(0, filePathWithoutRoot.Length - fileInfo.Name.Length);
-			string previewWebPath = PhotosPage.rootPathWeb + "/" + filePathWithoutRootWithoutFileName.Replace('\\', '/') + "/previews/";
+			string previewWebPath = Program.rootPathWeb + "/" + filePathWithoutRootWithoutFileName.Replace('\\', '/') + "/previews/";
 			string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileInfo.Name);
 			if(System.IO.Directory.Exists(previewsPath)) {
 				string tinyPath = Path.Combine(previewsPath, fileNameWithoutExtension + "_tiny.jpg");
