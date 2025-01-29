@@ -96,7 +96,18 @@
 			}, 100); // 100ms delay
 		});
 	}
-	
+
+
+	document.addEventListener('keydown', function (event) {
+		if (event.key === 'Escape') {
+			if (window.dotNetHelper) {
+				window.dotNetHelper.invokeMethodAsync('Hide');
+			}
+		}
+	});
+	function setDotNetHelper(dotNetHelper) {
+		window.dotNetHelper = dotNetHelper;
+	}
 </script>
 
 @code{
@@ -105,8 +116,10 @@
 	public void Show() {
 		visible = true;
 	}
+	[JSInvokable]
 	public void Hide() {
 		visible = false;
+		StateHasChanged();
 	}
 	[Parameter]
 	public Photograph photograph { get; set; }
@@ -118,10 +131,12 @@
 	public int infoWidth = 9999;
 
 	private DotNetObjectReference<PhotoEnlarge>? dotNetHelper;
+
 	protected override async Task OnAfterRenderAsync(bool firstRender) {
 		if(firstRender) {
 			dotNetHelper = DotNetObjectReference.Create(this);
 			await JSRuntime.InvokeVoidAsync("onWindowResize", dotNetHelper);
+			await JSRuntime.InvokeVoidAsync("setDotNetHelper", dotNetHelper);
 			await CalculateElementSize();
 			StateHasChanged();
 		}

@@ -2,9 +2,11 @@
 namespace TWG5000.Models {
 	public class SubDirectory {
 		public string name = "";
+		public string pathName = "";
 		public string description = "";
 		public string path = "";
 		public int sortIndex = -1;
+		public string iconExists = "";
 		public List<Photograph> photographs = new List<Photograph>();
 		List<Metainfo> metainfo = new List<Metainfo>();
 
@@ -12,6 +14,12 @@ namespace TWG5000.Models {
 			Console.WriteLine("Loading subdirectory: " + path);
 			SubDirectory subDirectory = new SubDirectory();
 			subDirectory.name = new DirectoryInfo(path).Name;
+			//get the directory name from the path without using DirectoryInfo
+			subDirectory.pathName = path.Substring(path.LastIndexOf("\\") + 1);
+			Console.WriteLine("Subdirectory name: " + subDirectory.name);
+			Console.WriteLine("Subdirectory pathName: " + subDirectory.pathName);
+
+
 			subDirectory.path = path;
 
 			// Check if file metainfo.csv exists in the subdirectory
@@ -43,12 +51,28 @@ namespace TWG5000.Models {
 				int.TryParse(sortIndexMeta.Value, out subDirectory.sortIndex);
 			}
 
+			//if icon.jpg exists in the subdirectory
+			if(File.Exists(Path.Combine(path, "icon.jpg"))) {
+				Console.WriteLine("icon.jpg found for");
+				subDirectory.iconExists = "icon.jpg";
+			}
+			else if(File.Exists(Path.Combine(path, "icon.gif"))) {
+				Console.WriteLine("icon.gif found for");
+				subDirectory.iconExists = "icon.gif";
+			}
+
+
 			// Load photographs
 			DirectoryInfo directoryInfo = new DirectoryInfo(path);
 			foreach(string extension in Photograph.photoExtensions) {
 				Console.WriteLine("Loading photographs with extension: " + extension);
 				foreach(FileInfo fileInfo in directoryInfo.GetFiles($"*{extension}")) {
 					Console.WriteLine("\n\nLoading photograph: " + fileInfo.Name);
+					//if the image is icon.jpg or icon.gif then skip it
+					if(fileInfo.Name == "icon.jpg" || fileInfo.Name == "icon.gif") {
+						Console.WriteLine("Skipping icon file");
+						continue;
+					}
 					Photograph photograph = Photograph.LoadPhotograph(fileInfo.FullName);
 					subDirectory.photographs.Add(photograph);
 				}

@@ -3,9 +3,10 @@
 @rendermode InteractiveServer
 @using Directory = System.IO.Directory;
 @using PSC.Blazor.Components.BrowserDetect
-<link href="PhotosPage.css" rel="stylesheet" />
+<link href="PhotosPage.css?v=101" rel="stylesheet" />
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JSRuntime
 
 <div class="page">
 <div class="content px-4">
@@ -38,29 +39,114 @@
 	</script>
 </div>
 <div class="gallery">
+	@if(!string.IsNullOrEmpty(error)){
+		<div class="error">
+			<img src="/gfx/error.ico" style="width: 32px" />
+			<div style="color: red; text-shadow: 0px 0px 3px white, 1px 1px 5px white;">@((MarkupString)error)</div>
+		</div>
+	}
 	@{int index = 0;}
 	@if(directory != null){
-	  @foreach (var subDir in directory.subDirectories) {
-		  if(AllowLoadingPhotos){
-			  foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
-				  <Photo photograph="@photo" index="@index" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" showPin/>
-				  index++;
-			  }
-		  }
-	  }
-	  if(AllowLoadingPhotos && index == 0){
+		@foreach (var subDir in directory.subDirectories) {
+			if(AllowLoadingPhotos){
+				if(subDir.iconExists.Length > 1){
+					<h2 class="textGlowWhite">
+						<img src="@($"{rootPathWeb}/{GalleryPath}/Photos/{subDir.pathName}/{subDir.iconExists}")" style="width: 32px; height: 32px; vertical-align: middle; margin-right: 5px; margin-top: -5px;" />
+						@subDir.name
+					</h2>
+				}
+				else{
+					<h2 class="textGlowWhite">@subDir.name</h2>
+				}
+				<p class="textGlowWhite">@((MarkupString)subDir.description)</p>
+				<div class="gallerySubdir">
+					@foreach(var photo in Photograph.SortPhotoGraphByDate(subDir.photographs)) {
+						<Photo photograph="@photo" index="@index" whiteBorder="23" enlargeOnHover="true" maxSize="@maxPhotoSize" OnClick="PhotoClicked" showPin/>
+						index++;
+					}
+				</div>
+				<br />
+			}
+		}
+	}
+	@if(AllowLoadingPhotos && index == 0 ){
 		  <div class="error">
 			  <img src="/gfx/error.ico" style="width: 32px"/>
 			  <div style="color: red; text-shadow: 0px 0px 3px white, 1px 1px 5px white;">Galerie neobsahuje žádné fotografie</div>
 		  </div>
-	  }
-	} else{
-		<p><img style="display: inline;" src="/gfx/busy aero fast.gif" />Fotky se načítají, čekejte prosím</p>
+	}
+	@if(directory == null && !AccessDenied){
+		<p class="textGlowWhite"><img style="display: inline;" src="/gfx/busy aero fast.gif" />Fotky se načítají, čekejte prosím</p>
 	}
 </div>
 </div> <!--close page-->
 </div> <!--close content-->
-<div class="footer">
+<script>
+	function setCookie(name, value, days) {
+		var expires = "";
+		if (days) {
+			var date = new Date();
+			date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+			expires = "; expires=" + date.toUTCString();
+		}
+		document.cookie = name + "=" + (value || "") + expires + "; path=/";
+	}
+
+	function getCookie(name) {
+		var nameEQ = name + "=";
+		var ca = document.cookie.split(';');
+		for (var i = 0; i < ca.length; i++) {
+			var c = ca[i];
+			while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+			if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+		}
+		return null;
+	}
+
+	var newString = "Zobrazit nové flex zobrazení";
+	var oldString = "Zobrazit staré grid zobrazení";
+
+	function setGrid(useGrid) {
+		var galleries = document.querySelectorAll('.gallerySubdir');
+		galleries.forEach(function (gallery) {
+			if (useGrid) {
+				gallery.classList.add('grid');
+			} else {
+				gallery.classList.remove('grid');
+			}
+		});
+		document.getElementById('stareGridZobrazeni').innerText = useGrid ? newString : oldString;
+		setCookie('useGrid', useGrid ? 'true' : 'false', 30); // Save the setting in a cookie
+		console.log("changed view to " + (useGrid ? "old grid view" : "flex view"));
+	}
+
+	function grid() {
+		console.log("grid mode change");
+		var gallery = document.querySelector('.gallerySubdir');
+		if (gallery.classList.contains('grid')) {
+			setGrid(false);
+		} else {
+			setGrid(true);
+		}
+	}
+	function setGridFromCookie() {
+		var useGrid = getCookie('useGrid');
+		if (useGrid === 'true') {
+			setGrid(true);
+		} else {
+			setGrid(false);
+		}
+	}
+	// Load the view setting from the cookie when the page is loaded
+	window.addEventListener('load', function () {
+		setGridFromCookie();
+	});
+
+
+</script>
+<button id="stareGridZobrazeni" class="AeroButton center-button" onclick="grid()">Zobrazit staré grid zobrazení</button>
+<div class="footer" style="background-color: white !important; padding: 0px; padding-bottom: 20px;">
+	<hr>
 	<p class="programName"><a href="https://github.com/T0biasCZe/TWG5000/" class="no-a-deco">Tobik Web Gallery 5000</a></p>
 	<p>© 2024 - 2025 T0biasCZe</p>
 	<div class="buttons8831">
@@ -93,6 +179,7 @@
 
 @code {
 	private bool AllowLoadingPhotos = false;
+	private bool AccessDenied = false;
 	Size maxPhotoSize = new Size(400, 300);
 	string error = "";
 	[Parameter] public required string GalleryPath { get; set; }
@@ -176,6 +263,7 @@
 					//NavigationManager.NavigateTo("photos/" + GalleryPath + "/login");
 					error = $"Tahle fotogalerie požaduje k přístupu heslo.<br>This Photogallery requires password to be entered<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
 					AccessLog("Pokus o načtení galerie bez hesla", "");
+					AccessDenied = true;
 				}
 				else {
 					Console.BackgroundColor = ConsoleColor.Yellow;
@@ -195,6 +283,7 @@
 						//password incorrect
 						error = $"Nesprávné heslo<br>Incorrect password<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
 						AccessLog("Pokud o načtení se špatným heslem", password);
+						AccessDenied = true;
 					}
 				}
 			}
@@ -211,6 +300,8 @@
 			Console.WriteLine("Not first render");
 		}
 		firstRender = false;
+
+		await JSRuntime.InvokeVoidAsync("setGridFromCookie");
 	}
 	private PhotoEnlarge? photoEnlarge;
 	protected void PhotoClicked(Photograph photo) {

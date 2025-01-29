@@ -183,13 +183,25 @@ namespace TWG5000.Models {
 			Console.WriteLine("photograph webpath: " + photograph.webPath);
 			return photograph;
 		}
-
+		private const int exifOrientationID = 0x112; //274
 		public static Size GetSize(string fullPath) {
 			Size size = new Size(0, 0);
 			using(Stream stream = File.OpenRead(fullPath)) {
 				using(Image sourceImage = Image.FromStream(stream, false, false)) {
-					size.Width = sourceImage.Width;
-					size.Height = sourceImage.Height;
+					int Width = sourceImage.Width;
+					int Height = sourceImage.Height;
+
+					if(sourceImage.PropertyIdList.Contains(exifOrientationID)){
+						PropertyItem propertyItem = sourceImage.GetPropertyItem(exifOrientationID);
+						int orientation = propertyItem.Value[0];
+						if(orientation >= 5 && orientation <= 8) {
+							Width = sourceImage.Height;
+							Height = sourceImage.Width;
+						}
+					}
+
+					size.Width = Width;
+					size.Height = Height;
 				}
 			}
 			return size;
