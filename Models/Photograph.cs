@@ -8,6 +8,7 @@ using TWG5000.Components.Pages;
 using static System.Net.Mime.MediaTypeNames;
 using Image = System.Drawing.Image;
 using Directory = System.IO.Directory;
+using System.Text.RegularExpressions;
 namespace TWG5000.Models {
 	public class Photograph {
 		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".gif", ".bmp", ".tiff", ".glb"};
@@ -21,8 +22,9 @@ namespace TWG5000.Models {
 		public string author = "";
 		public List<string> keywords = new List<string>();
 		public bool is3D = false;
+		public bool isNsfw = false;
 
-        public DateTime dateTaken = new DateTime(0);
+		public DateTime dateTaken = new DateTime(0);
 		public DateTime dateDigitized = new DateTime(0);
 		public DateTime dateModified = new DateTime(0); //date of the windows file modification
 		public DateTime dateCreated = new DateTime(0);
@@ -112,6 +114,12 @@ namespace TWG5000.Models {
 						return new Metainfo(parts[0], parts[1]);
 					}).ToList();
 			}
+			//parse "nfsw" from metainfo
+			var nsfwMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "nsfw");
+			if(nsfwMeta != null && nsfwMeta.Value.Length > 0) {
+				photograph.isNsfw = nsfwMeta.Value == "true";
+			}
+
 			var titleMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "title");
 			if(titleMeta != null && titleMeta.Value.Length > 0) {
 				photograph.title = titleMeta.Value;
@@ -144,6 +152,12 @@ namespace TWG5000.Models {
 			if(dateCreatedMeta != null && dateCreatedMeta.Value.Length > 0) {
 				DateTime.TryParseExact(dateCreatedMeta.Value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateCreated);
 			}
+
+			if(photograph.dateTaken == new DateTime(0)) {
+				Console.WriteLine($"No date taken found in exif with photo {photograph.fileName}, trying to parse from filename");
+				photograph.dateTaken = ParseCustomDateTime(fileInfo.Name) ?? new DateTime(0);
+			}
+
 			var coordinatesMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "coordinates");
 			if(coordinatesMeta != null && coordinatesMeta.Value.Length > 1) {
 				photograph.coordinates = new Vector2(0, 0);
@@ -178,7 +192,6 @@ namespace TWG5000.Models {
 					photograph.webPathMedium = previewWebPath + fileNameWithoutExtension + "_medium.jpg";
 				}
 			}
-
 
 			Console.WriteLine("photograph webpath: " + photograph.webPath);
 			return photograph;
@@ -268,6 +281,24 @@ namespace TWG5000.Models {
 			float seconds = (decimalCoordinate - minutes) * 60;
 
 			return $"{degrees}° {minutes}' {seconds:0.##}\" {direction}";
+		}
+
+		public static DateTime? ParseCustomDateTime(string input) {
+			Match match = Regex.Match(input, @"(\d{8})_(\d{6})");
+
+			if(match.Success) {
+				string datePart = match.Groups[1].Value;
+				string timePart = match.Groups[2].Value;
+				string dateTimeString = $"{datePart}_{timePart}";
+
+				if(DateTime.TryParseExact(dateTimeString, "yyyyMMdd_HHmmss",
+										   CultureInfo.InvariantCulture,
+										   DateTimeStyles.None,
+										   out DateTime parsedDate)) {
+					return parsedDate;
+				}
+			}
+			return null;
 		}
 	}
 }

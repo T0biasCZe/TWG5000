@@ -15,7 +15,7 @@
 	<span class="photoGraphTitle">@photograph.title</span>
 	<div style="border: @(whiteBorder)px solid white; width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class='photoGraph'>
 		@if(!photograph.is3D){
-			<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px;" />
+			<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" />
 		}
 		else {
 			string script = "<script type='module' src='https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js'></script>";
@@ -40,6 +40,8 @@
 	[Parameter]
 	public bool showPin { get; set; } = false;
 	private int pinPosition = 0;
+	//set the css so that it has pixel filter on it (16x16 pixels))
+	private string isNsfwCss = "filter: blur(15px); transform: scale(1.2)";
 
 	public enum UsedQuality {
 		Tiny,
@@ -63,6 +65,9 @@
 	protected override void OnParametersSet() {
 		calculatedSize = CalculateSize(photograph.size, maxSize, whiteBorder);
 		GetPinPosition();
+		if(photograph.isNsfw == false) {
+			isNsfwCss = "";
+		}
 	}
 
 	public static Size CalculateSize(Size originalSize, Size maxSize, int whiteBorder) {
