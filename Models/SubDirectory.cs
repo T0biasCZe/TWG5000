@@ -64,6 +64,10 @@ namespace TWG5000.Models {
 
 			// Load photographs
 			DirectoryInfo directoryInfo = new DirectoryInfo(path);
+
+			bool enable3ds = File.Exists(Path.Combine(path, "enable3ds"));
+			bool enableLive = File.Exists(Path.Combine(path, "enablelive"));
+
 			foreach(string extension in Photograph.photoExtensions) {
 				Console.WriteLine("Loading photographs with extension: " + extension);
 				foreach(FileInfo fileInfo in directoryInfo.GetFiles($"*{extension}")) {
@@ -73,8 +77,8 @@ namespace TWG5000.Models {
 						Console.WriteLine("Skipping icon file");
 						continue;
 					}
-					Photograph photograph = Photograph.LoadPhotograph(fileInfo.FullName);
-					subDirectory.photographs.Add(photograph);
+					Photograph photograph = Photograph.LoadPhotograph(fileInfo.FullName, enable3ds, enableLive);
+					if(photograph != null)  subDirectory.photographs.Add(photograph);
 				}
 			}
 			Console.WriteLine("Subdirectory loaded, returning...");

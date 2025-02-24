@@ -11,7 +11,7 @@ using Directory = System.IO.Directory;
 using System.Text.RegularExpressions;
 namespace TWG5000.Models {
 	public class Photograph {
-		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".gif", ".bmp", ".tiff", ".glb"};
+		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".mpo", ".gif", ".bmp", ".tiff", ".glb"};
 		public string filePath = "";
 		public string webPath = "";
 		public string webPathTiny = "";
@@ -23,6 +23,10 @@ namespace TWG5000.Models {
 		public List<string> keywords = new List<string>();
 		public bool is3D = false;
 		public bool isNsfw = false;
+		public bool isLivePhoto = false;
+		public bool hasGif = false;
+		public bool hasJpg = false;
+		public bool hasMpo = false;
 
 		public DateTime dateTaken = new DateTime(0);
 		public DateTime dateDigitized = new DateTime(0);
@@ -38,10 +42,46 @@ namespace TWG5000.Models {
 		List<Metainfo> metainfo = new List<Metainfo>(); //external meta info from metainfo.csv
 		IEnumerable<MetadataExtractor.Directory> directories = new List<MetadataExtractor.Directory>();
 
-		public static Photograph LoadPhotograph(string path) {
+		public static Photograph LoadPhotograph(string path, bool enable3ds, bool enablelive) {
 			Photograph photograph = new Photograph();
 			FileInfo fileInfo = new FileInfo(path);
 			photograph.fileName = fileInfo.Name;
+			//if the enable3ds flag is set, if the file is jpg or mpo, check if  .gif file with the same name exists, and if yes, skip the .jpg or .mpo
+			if(enable3ds) {
+				Console.WriteLine("Enable nintendo 3ds support enabled"); 
+				if(fileInfo.Extension == ".jpg" || fileInfo.Extension == ".jpeg" || fileInfo.Extension == ".mpo" || fileInfo.Extension == ".MPO" || fileInfo.Extension == ".JPEG" || fileInfo.Extension == ".JPG") {
+					string gifPath = Path.ChangeExtension(fileInfo.FullName, ".gif");
+					if(File.Exists(gifPath)) {
+						Console.WriteLine("Skipping jpg/mpo file because gif file exists: " + path);
+						return null;
+					}
+				}
+			}
+			if(enablelive) {
+				Console.WriteLine("Enable live photo enabled");
+				//if the enablelive flag is set, if the file is .mov, check if .jpg file with the same name exists, and if yes, skip the .mov
+				if(fileInfo.Extension == ".mov") {
+					string jpgPath = Path.ChangeExtension(fileInfo.FullName, ".jpg");
+					string jpegPath = Path.ChangeExtension(fileInfo.FullName, ".jpeg");
+					if(File.Exists(jpgPath) || File.Exists(jpegPath)) {
+						Console.WriteLine("Skipping mov file because jpg file exists: " + path);
+						return null;
+					}
+
+				}
+				//if the file is .jpg, check if .mov file with the same name exists, and if yes, set the isLivePhoto flag to true
+				if(fileInfo.Extension == ".jpg" || fileInfo.Extension == ".jpeg" || fileInfo.Extension == ".JPEG" || fileInfo.Extension == ".JPG") {
+					Console.WriteLine("live photo enabled and jpg found");
+					string movPath = Path.ChangeExtension(fileInfo.FullName, ".mov");
+					if(File.Exists(movPath)) {
+						Console.WriteLine("Live photo found: " + path);
+						photograph.isLivePhoto = true;
+					}
+				}
+			}
+
+
+
 			//load the exif from the file itself
 			if(fileInfo.Name.Contains(".glb")) {
 				Console.WriteLine("Skipping exif for embed file: " + path);
@@ -55,7 +95,33 @@ namespace TWG5000.Models {
 				goto skipmeta;
 			}
 			Console.WriteLine("Loading exif from file: " + path);
-			photograph.directories = ImageMetadataReader.ReadMetadata(path);
+			string metadataImageFile = path;
+			if(enable3ds && fileInfo.Extension == ".gif") {
+				photograph.hasGif = true;
+				//check if there is .jpg file with the same name in the directory, if yes, load the exif from the .jpg file, if not, check if there is .mpo file with the same name in the directory, if yes, load the exif from the .mpo file
+				string jpgPath = Path.ChangeExtension(fileInfo.FullName, ".jpg");
+				string jpegPath = Path.ChangeExtension(fileInfo.FullName, ".jpeg");
+				string mpoPath = Path.ChangeExtension(fileInfo.FullName, ".mpo");
+				if(File.Exists(mpoPath)) {
+					Console.WriteLine("Loading exif from mpo file: " + mpoPath);
+					metadataImageFile = mpoPath;
+				} 
+				else if(File.Exists(jpgPath)) {
+					Console.WriteLine("Loading exif from jpg file: " + jpgPath);
+					metadataImageFile = jpgPath;
+					photograph.hasJpg = true;
+				}
+				else if(File.Exists(jpegPath)) {
+					Console.WriteLine("Loading exif from jpeg file: " + jpegPath);
+					metadataImageFile = jpegPath;
+					photograph.hasJpg = true;
+				}
+				if(File.Exists(mpoPath)){
+					photograph.hasMpo = true;
+				}
+			}
+
+			photograph.directories = ImageMetadataReader.ReadMetadata(metadataImageFile);
 			foreach(MetadataExtractor.Directory directory in photograph.directories) {
 				photograph.exif += directory.Name + "\n";
 				//Console.WriteLine(directory.Name);

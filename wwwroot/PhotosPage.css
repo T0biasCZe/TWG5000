@@ -40,6 +40,25 @@
     top: 1px;
     left: 10px;
 }
+.photoGraphTitleEnlarge {
+    color: black;
+    font-size: 18pt;
+    font-family: 'Cool jazz';
+    position: absolute;
+    z-index: 990;
+    top: 1px;
+    left: 10px;
+}
+.livePhotoWarn {
+    color: orange;
+    font-weight: bolder, bold;
+    font-size: 20pt;
+    font-family: 'Cool jazz';
+    position: absolute;
+    z-index: 990;
+    top: 1px;
+    right: 10px;
+}
 .red-pin {
     position: absolute;
     z-index: 999;

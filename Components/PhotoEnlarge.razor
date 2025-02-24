@@ -5,7 +5,7 @@
 	<div class="windowContent">
 		@if(photograph != null) {
 			<div class="windowPhotograph">
-				<Photo photograph="@photograph" enlargeOnHover="false" whiteBorder="@whiteBorder" maxSize="@maxPhotoSize" quality="Photo.UsedQuality.Medium" @ref="photo" />
+				<Photo photograph="@photograph" enlargeOnHover="false" whiteBorder="@whiteBorder" maxSize="@maxPhotoSize" quality="Photo.UsedQuality.Medium" enlargeView="true" @ref="photo"/>
 			</div>
 			<div class="windowsPhotographInfo" style="max-width: @(infoWidth)px">
 				<h1>@photograph.title</h1>
