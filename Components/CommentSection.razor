@@ -1,0 +1,188 @@
+﻿@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Ganss.Xss;
+<link rel="stylesheet" href="/stylopisKomentare.css" />
+
+<script>
+  window.scrollToPhoto = function(photoId) {
+    var el = document.getElementById(photoId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      var photoGraph = el.querySelector('.photoGraph');
+      if (!photoGraph){
+          console.warn("PhotoGraph element not found for ID:", photoId);
+          return;
+      }
+
+      var originalBorder = photoGraph.style.border;
+
+      var blinkColors = ['deepskyblue', 'white'];
+      var blinkIndex = 0;
+      var blinkInterval = setInterval(function() {
+        console.log("Blinking border for photo:", photoId);
+        photoGraph.style.border = originalBorder.replace("white", blinkColors[blinkIndex % 2]);
+        blinkIndex++;
+      }, 250);
+
+      setTimeout(function() {
+        clearInterval(blinkInterval);
+        photoGraph.style.border = originalBorder;
+      }, 3000);
+    }
+  }
+</script>
+
+<div class="commentSectionContainer">
+    <div class="commentSection">
+        <h2 style="text-shadow: 1px 1px 1px deepskyblue, 1px 1px 4px aqua" id="commentsH">Komentáře</h2>
+        <div class="commentForm">
+            <EditForm Model="@newComment" OnValidSubmit="HandleValidSubmit" id="commentEditForm">
+                <label for="username">Jméno:</label><br>
+                <InputText id="username" @bind-Value="newComment.Username" required /><br><br>
+
+                <label for="message">Zpráva:</label><br>
+                <InputTextArea id="message" @bind-Value="newComment.Message" required style="width: 400px; height: 100px;" /><br><br>
+
+                <p style="font-size: 9pt; color: #777;">
+                    <img src="imageres_81.ico" alt="HTML Support Icon" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 8px;">
+                    Komentáře lze formátovat skrz HTML (například 
+                    <code>&lt;b&gt;tučné&lt;/b&gt;</code>, 
+                    <code>&lt;i&gt;kurzíva&lt;/i&gt;</code>, 
+                    <code>&lt;span style=&quot;color: red;&quot;&gt;barevný text&lt;/span&gt;</code>, 
+                    <code>&lt;img src=&quot;url&quot;&gt;</code> atd.).
+                </p>
+
+                <label for="profile_picture">Obrázek (nepovinné):</label>
+                <InputFile id="profile_picture" OnChange="HandleProfilePicture" accept="image/*" /><br><br>
+
+                <button type="submit">Odeslat</button>
+            </EditForm>
+        </div>
+        <hr>
+        <div class="commentList">
+            @foreach (var comment in Comments.OrderByDescending(c => c.Date))
+            {
+                <div class="comment">
+                    <div class="comment-header-wrapper">
+                        <div class="profile-frame">
+                            <img class="frame" src="/gfx/frame.png" alt="Frame" />
+                            <img class="profile-picture" src="@comment.ProfilePicture" alt="Profile Picture" />
+                        </div>
+                        <div class="comment-header">
+                            <div class="username">@comment.Username</div>
+                            <div class="date">@comment.Date.ToString("yyyy-MM-dd HH:mm:ss")</div>
+                        </div>
+                    </div>
+                    <div class="message">@((MarkupString)ParsePhotoLinks(EmojiHelper.ReplaceEmojis(comment.Message)))</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter] public string Path { get; set; } = "";
+    [Parameter] public string WebPath { get; set; } = "";
+    [Parameter] public RequestInfoService info { get; set; }
+
+    public class Comment
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Username { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string ProfilePicture { get; set; } = "/gfx/miidefault.png";
+        public DateTime Date { get; set; } = DateTime.Now;
+        public string IpAddress { get; set; } = "";
+    }
+
+    private List<Comment> Comments = new();
+    private Comment newComment = new();
+    private IBrowserFile? uploadedFile;
+
+    private string CommentsFilePath => System.IO.Path.Combine(Path, "comments.json");
+    private string PfpsDir => System.IO.Path.Combine(Path, "pfps");
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine($"Initializing CommentSection with Path: {Path} and WebPath: {WebPath}");
+        // Ensure pfps directory exists
+        if (!System.IO.Directory.Exists(PfpsDir))
+            System.IO.Directory.CreateDirectory(PfpsDir);
+
+        LoadComments();
+    }
+
+    private void LoadComments()
+    {
+        if (File.Exists(CommentsFilePath))
+        {
+            var json = File.ReadAllText(CommentsFilePath);
+            Comments = JsonSerializer.Deserialize<List<Comment>>(json) ?? new List<Comment>();
+        }
+    }
+
+    private async Task HandleProfilePicture(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // Sanitize HTML with Ganss.XSS
+        var sanitizer = new HtmlSanitizer();
+        sanitizer.AllowedTags.Add("span");
+        sanitizer.AllowedAttributes.Add("style");
+        sanitizer.AllowedCssProperties.Add("color");
+        newComment.Message = sanitizer.Sanitize(newComment.Message);
+
+        // Handle profile picture upload
+        if (uploadedFile != null)
+        {
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(uploadedFile.Name);
+            var ext = System.IO.Path.GetExtension(uploadedFile.Name);
+            var safeFileName = $"{fileName}_{Guid.NewGuid().ToString().Substring(0, 8)}{ext}";
+            var filePath = System.IO.Path.Combine(PfpsDir, safeFileName);
+
+            await using var fs = File.Create(filePath);
+            await uploadedFile.OpenReadStream(2 * 1024 * 1024).CopyToAsync(fs); // 2MB limit
+
+            newComment.ProfilePicture = $"{WebPath}/pfps/{safeFileName}";
+        }
+        else
+        {
+            newComment.ProfilePicture = $"/gfx/miidefault.png";
+        }
+
+        newComment.Date = DateTime.Now;
+        newComment.IpAddress = info.IpAddress ?? "Unknown"; 
+
+        // Prevent duplicate IDs
+        if (!Comments.Any(c => c.Id == newComment.Id))
+        {
+            Comments.Add(new Comment
+            {
+                Id = newComment.Id,
+                Username = newComment.Username,
+                Message = newComment.Message,
+                ProfilePicture = newComment.ProfilePicture,
+                Date = newComment.Date,
+                IpAddress = newComment.IpAddress
+            });
+
+            // Save to JSON
+            var json = JsonSerializer.Serialize(Comments, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(CommentsFilePath, json);
+        }
+
+        // Reset form
+        newComment = new Comment();
+        uploadedFile = null;
+        StateHasChanged();
+    }
+    private string ParsePhotoLinks(string message) {
+        return System.Text.RegularExpressions.Regex.Replace(message, @"#([^\s\[\]]+)|\[photo:([^\]]+)\]", m => {
+            var fileName = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            return $"<span class='photo-link' style='color:deepskyblue;cursor:pointer;text-decoration:underline;' onclick=\"window.scrollToPhoto('{fileName}')\">#{fileName}</span>";
+        });
+    }
+}

@@ -8,15 +8,22 @@ using TWG5000.Components.Pages;
 using static System.Net.Mime.MediaTypeNames;
 using Image = System.Drawing.Image;
 using Directory = System.IO.Directory;
+using MediaInfo.DotNetWrapper;
+using MediaInfo.DotNetWrapper.Enumerations;
+
 using System.Text.RegularExpressions;
 namespace TWG5000.Models {
 	public class Photograph {
 		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".mpo", ".gif", ".bmp", ".tiff", ".glb"};
+		public static List<string> audioExtensions = new List<string> { ".wav" };
+		public static List<string> videoExtensions = new List<string> { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv" };
 		public string filePath = "";
 		public string webPath = "";
 		public string webPathTiny = "";
 		public string webPathMedium = "";
+		public string audioPath = ""; //path to audio file for Samsung sound photo (if exists)
 		public string fileName = "";
+		public string fileNameWithoutExtension => Path.GetFileNameWithoutExtension(filePath);
 		public string title = "";
 		public string description = "";
 		public string author = "";
@@ -24,6 +31,7 @@ namespace TWG5000.Models {
 		public bool is3D = false;
 		public bool isNsfw = false;
 		public bool isLivePhoto = false;
+		public bool isVideo = false;
 		public bool hasGif = false;
 		public bool hasJpg = false;
 		public bool hasMpo = false;
@@ -42,7 +50,7 @@ namespace TWG5000.Models {
 		List<Metainfo> metainfo = new List<Metainfo>(); //external meta info from metainfo.csv
 		IEnumerable<MetadataExtractor.Directory> directories = new List<MetadataExtractor.Directory>();
 
-		public static Photograph LoadPhotograph(string path, bool enable3ds, bool enablelive) {
+		public static Photograph LoadPhotograph(string path, bool enable3ds, bool enablelive, bool extractwav) {
 			Photograph photograph = new Photograph();
 			FileInfo fileInfo = new FileInfo(path);
 			photograph.fileName = fileInfo.Name;
@@ -60,7 +68,7 @@ namespace TWG5000.Models {
 			if(enablelive) {
 				Console.WriteLine("Enable live photo enabled");
 				//if the enablelive flag is set, if the file is .mov, check if .jpg file with the same name exists, and if yes, skip the .mov
-				if(fileInfo.Extension == ".mov") {
+				if(videoExtensions.Contains(fileInfo.Extension.ToLower())) {
 					string jpgPath = Path.ChangeExtension(fileInfo.FullName, ".jpg");
 					string jpegPath = Path.ChangeExtension(fileInfo.FullName, ".jpeg");
 					if(File.Exists(jpgPath) || File.Exists(jpegPath)) {
@@ -80,6 +88,42 @@ namespace TWG5000.Models {
 				}
 			}
 
+			//Video detection
+			
+			if(videoExtensions.Contains(fileInfo.Extension.ToLower())) {
+				if(enablelive){
+					string jpgPath = Path.ChangeExtension(fileInfo.FullName, ".jpg");
+					string jpegPath = Path.ChangeExtension(fileInfo.FullName, ".jpeg");
+					if(File.Exists(jpgPath) || File.Exists(jpegPath)) {
+						Console.WriteLine("Skipping video file because jpg file exists: " + path);
+						return null;
+					}
+				}
+				Console.WriteLine("Video file found: " + path);
+				photograph.isVideo = true;
+				photograph.size = new Size(1920, 1080);
+			}
+
+			if(extractwav && fileInfo.Extension == ".jpg") {
+				Console.WriteLine("Extracting wav from jpg: " + path);
+				if(WavExtractor.ExtractWavFromFile(path)) {
+				Console.WriteLine("Wav extracted successfully from jpg: " + path);
+				}
+				else {
+					Console.WriteLine("jpg doesnt have .wav in it");
+				}
+			}
+
+			//check if there is an audio file with the same name as the photograph in the same directory but with an audio extension
+			foreach(string audioExtension in audioExtensions) {
+				string audioFilePath = Path.ChangeExtension(fileInfo.FullName, audioExtension);
+				if(File.Exists(audioFilePath)) {
+					Console.WriteLine("Audio file found: " + audioFilePath);
+					//photograph.audioPath = audioFilePath;
+					photograph.audioPath = Program.rootPathWeb + "/" + audioFilePath.Substring(Program.rootPath.Length).Replace('\\', '/');
+					break;
+				}
+			}
 
 
 			//load the exif from the file itself
@@ -151,6 +195,12 @@ namespace TWG5000.Models {
 					if(tag.Name == "Date/Time") {
 
 						DateTime.TryParseExact(tag.Description, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out photograph.dateEdited);
+					}
+					if(tag.Name == "Make"){
+						photograph.cameraModel = tag.Description;
+					}
+					if(tag.Name == "Model"){
+						photograph.cameraModel += " " + tag.Description;
 					}
 
 					//parse coordinates
@@ -224,6 +274,13 @@ namespace TWG5000.Models {
 				photograph.dateTaken = ParseCustomDateTime(fileInfo.Name) ?? new DateTime(0);
 			}
 
+			if(photograph.dateTaken == new DateTime(0)) {
+				//get the date from file modification time
+				Console.WriteLine($"No date taken found in exif or filename with photo {photograph.fileName}, using file modification time");
+				photograph.dateTaken = fileInfo.LastWriteTime;
+			}
+
+
 			var coordinatesMeta = photograph.metainfo.FirstOrDefault(m => m.Key == "coordinates");
 			if(coordinatesMeta != null && coordinatesMeta.Value.Length > 1) {
 				photograph.coordinates = new Vector2(0, 0);
@@ -258,6 +315,37 @@ namespace TWG5000.Models {
 					photograph.webPathMedium = previewWebPath + fileNameWithoutExtension + "_medium.jpg";
 				}
 			}
+			if(photograph.webPath.Contains(".gif", StringComparison.OrdinalIgnoreCase)) {
+				if(System.IO.Directory.Exists(previewsPath)) {
+					string tinyPath = Path.Combine(previewsPath, fileNameWithoutExtension + "_tiny.gif");
+					if(File.Exists(tinyPath)) {
+						photograph.webPathTiny = previewWebPath + fileNameWithoutExtension + "_tiny.gif";
+					}
+					string mediumPath = Path.Combine(previewsPath, fileNameWithoutExtension + "_medium.gif");
+					if(File.Exists(mediumPath)) {
+						photograph.webPathMedium = previewWebPath + fileNameWithoutExtension + "_medium.gif";
+					}
+				}
+			}
+
+			if(photograph.isVideo) {
+				string tinyPath = Path.Combine(previewsPath, fileNameWithoutExtension + "_thumb.jpg");
+				if(File.Exists(tinyPath)) {
+					photograph.webPathTiny = previewWebPath + fileNameWithoutExtension + "_thumb.jpg";
+				}
+				else{
+					photograph.webPathTiny = "/gfx/video.png"; //default thumbnail for videos
+				}
+				string mediumPath = Path.Combine(previewsPath, fileNameWithoutExtension + "_medium.mp4");
+				if(File.Exists(mediumPath)) {
+					photograph.webPathMedium = previewWebPath + fileNameWithoutExtension + "_medium.mp4";
+				}
+				else{
+					photograph.webPathMedium = photograph.webPath; //default thumbnail for videos
+				}
+			}
+
+
 
 			Console.WriteLine("photograph webpath: " + photograph.webPath);
 			return photograph;
@@ -265,23 +353,65 @@ namespace TWG5000.Models {
 		private const int exifOrientationID = 0x112; //274
 		public static Size GetSize(string fullPath) {
 			Size size = new Size(0, 0);
-			using(Stream stream = File.OpenRead(fullPath)) {
-				using(Image sourceImage = Image.FromStream(stream, false, false)) {
-					int Width = sourceImage.Width;
-					int Height = sourceImage.Height;
+			if(photoExtensions.Contains(Path.GetExtension(fullPath).ToLower())){
+				using(Stream stream = File.OpenRead(fullPath)) {
+					using(Image sourceImage = Image.FromStream(stream, false, false)) {
+						int Width = sourceImage.Width;
+						int Height = sourceImage.Height;
 
-					if(sourceImage.PropertyIdList.Contains(exifOrientationID)){
-						PropertyItem propertyItem = sourceImage.GetPropertyItem(exifOrientationID);
-						int orientation = propertyItem.Value[0];
-						if(orientation >= 5 && orientation <= 8) {
-							Width = sourceImage.Height;
-							Height = sourceImage.Width;
+						if(sourceImage.PropertyIdList.Contains(exifOrientationID)){
+							PropertyItem propertyItem = sourceImage.GetPropertyItem(exifOrientationID);
+							int orientation = propertyItem.Value[0];
+							if(orientation >= 5 && orientation <= 8) {
+								Width = sourceImage.Height;
+								Height = sourceImage.Width;
+							}
 						}
-					}
 
-					size.Width = Width;
-					size.Height = Height;
+						size.Width = Width;
+						size.Height = Height;
+					}
 				}
+			}
+			else if(videoExtensions.Contains(Path.GetExtension(fullPath).ToLower())) {
+				try {
+					using(var mediaInfo = new MediaInfo.DotNetWrapper.MediaInfo()) {
+						mediaInfo.Open(fullPath);
+
+						string widthStr = mediaInfo.Get(StreamKind.Video, 0, "Width");
+						string heightStr = mediaInfo.Get(StreamKind.Video, 0, "Height");
+
+						if(int.TryParse(widthStr, out int width) && int.TryParse(heightStr, out int height)) {
+							size.Width = width;
+							size.Height = height;
+						}
+
+						mediaInfo.Close();
+					}
+				}
+				catch(Exception ex) {
+					Console.ForegroundColor = ConsoleColor.Red;
+					Console.WriteLine("MediaInfo error: " + ex.Message);
+					Console.ResetColor();	
+				}
+			}
+			else{
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.WriteLine("WARNING FILE IS NOT PHOTO OR VIDEO: " + fullPath);
+				Console.WriteLine("WARNING FILE IS NOT PHOTO OR VIDEO: " + fullPath);
+				Console.WriteLine("WARNING FILE IS NOT PHOTO OR VIDEO: " + fullPath);
+				Console.WriteLine("WARNING FILE IS NOT PHOTO OR VIDEO: " + fullPath);
+				Console.WriteLine("WARNING FILE IS NOT PHOTO OR VIDEO: " + fullPath);
+				Console.ResetColor();
+			}
+			if(size.Width == 0 || size.Height == 0) {
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine("ERROR: Size could not be determined for file: " + fullPath);
+				Console.WriteLine("ERROR: Size could not be determined for file: " + fullPath);
+				Console.WriteLine("ERROR: Size could not be determined for file: " + fullPath);
+				Console.WriteLine("ERROR: Size could not be determined for file: " + fullPath);
+				Console.WriteLine("ERROR: Size could not be determined for file: " + fullPath);
+				Console.ResetColor();
 			}
 			return size;
 		}

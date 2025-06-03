@@ -7,7 +7,7 @@
 	var videoKey = $"{photograph.webPath}-{Guid.NewGuid()}";
 }
 
-<div @onclick="HandleClick" @ondblclick="HandleDblClick" style="width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class="photoGraphBody @(enlargeOnHover ? "photoEnlargeOnHover" : "")">
+<div @onclick="HandleClick" @ondblclick="HandleDblClick" style="width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class="photoGraphBody @(enlargeOnHover ? "photoEnlargeOnHover" : "")" id="@photograph.fileNameWithoutExtension">
 	@if(showPin) {
 		<img src="/gfx/Red-Pin.png" class="red-pin" style="left: @(pinPosition)px" />
 	}
@@ -17,19 +17,39 @@
 		<span class="photoGraphTitleEnlarge">@photograph.title</span>
 	}
 	@if(photograph.isLivePhoto && enlargeView) {
-		@if(livePhotoAgain) {
-			<span class="livePhotoWarn">Live photo, načítání může pár sekund trvat</span>
-		}
-		else{
-			<span class="livePhotoWarn"> Live photo, načítání může pár sekund trvat. <span style="color: red">Kliknete prosím na video pro odbugnutí</span></span>
-		}
+		<span class="livePhotoWarn">Live photo, načítání může pár sekund trvat</span>
+	}
+	@if(!enlargeView && photograph.audioPath.Length > 1){
+		<img src="/gfx/audio/mute.png" style="top: 2px; right: 2px; position: absolute; z-index: 999"/>
+	}
+	@if(!enlargeView && photograph.isVideo){
+		<img src="/gfx/videoindicator.png" style="top: 2px; max-height: 21px; right: 2px; position: absolute; z-index: 999"/>
+	}
+	@if(!enlargeView && photograph.isLivePhoto){
+		<img src="/gfx/livephotoindicator.png" style="top: 2px; right: 2px; position: absolute; z-index: 999"/>
+	}
+	@if(!enlargeView && photograph.is3D){
+		<img src="/gfx/3dindicator.png" style="top: 2px; right: 2px; max-height: 21px; position: absolute; z-index: 999"/>
 	}
 	<div style="border: @(whiteBorder)px solid white; width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class='photoGraph'>
 		@if(photograph.isLivePhoto && enlargeView) {
 			Console.WriteLine("Enlarge view and live photo.");
 			//add video tag, and set the src to the webPath, but replace the extension to .mov
 
-			<video id="@(new Random().Next(0,1000))" key="@videoKey" autoplay loop muted playsinline style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" src=@Path.ChangeExtension(photograph.webPath, ".MOV")>
+			<video id="@(new Random().Next(0,100000))" key="@videoKey" autoplay loop playsinline style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" src=@Path.ChangeExtension(photograph.webPath, ".MOV")>
+				<!--Set fallback .jpg img for when the browser doesnt support .mov or .h264-->
+				<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" />
+			</video>
+
+			@if(livePhotoAgainAlt) {
+				JSRuntime.InvokeVoidAsync("ReloadVideo");
+			}
+		}
+		else if (photograph.isVideo && enlargeView){
+			Console.WriteLine("Enlarge view and video.");
+			//add video tag, and set the src to the webPath, but replace the extension to .mov
+
+			<video id="@(new Random().Next(0,100000))" key="@videoKey" autoplay loop playsinline controls style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" src=@photograph.webPathMedium>
 				<!--Set fallback .jpg img for when the browser doesnt support .mov or .h264-->
 				<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" />
 			</video>
@@ -40,6 +60,7 @@
 		}
 		else if(!photograph.is3D){
 			<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" />
+			//Console.WriteLine("audio file path: " + photograph.audioPath);
 		}
 		else {
 			string script = "<script type='module' src='https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js'></script>";
@@ -49,6 +70,7 @@
 		}
 	</div>
 </div>
+
 <script>
 	function ReloadVideo(){
 		setTimeout(() => {

@@ -1,0 +1,18 @@
+﻿@page "/emoji-demo"
+@inject IWebHostEnvironment Env
+
+
+@code {
+    private string _rawEmoji = "Tohle je flexící emoji 😎. a tohle je flexící emoji jako short code : sunglasses : :sunglasses:";
+    private string _converted;
+    private string _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _converted = EmojiHelper.ReplaceEmojis(_rawEmoji);
+    }
+}
+<h3>Emoji Demo</h3>
+
+<p><strong>Raw Emoji:</strong> @_rawEmoji</p>
+<p><strong>Converted Emoji:</strong> @((MarkupString)_converted)</p>

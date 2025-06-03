@@ -3,9 +3,10 @@
 @rendermode InteractiveServer
 @using Directory = System.IO.Directory;
 @using PSC.Blazor.Components.BrowserDetect
-<link href="PhotosPage.css?v=101" rel="stylesheet" />
+<link href="PhotosPage.css?v=102" rel="stylesheet" />
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor HttpContextAccessor
+@inject RequestInfoService RequestInfo
 @inject IJSRuntime JSRuntime
 
 <div class="page">
@@ -47,7 +48,7 @@
 	}
 	@{int index = 0;}
 	@if(directory != null){
-		@foreach (var subDir in directory.subDirectories) {
+		@foreach (var subDir in directory.GetSortedSubdirectories()) {
 			if(AllowLoadingPhotos){
 				if(subDir.iconExists.Length > 1){
 					<h2 class="textGlowWhite">
@@ -144,33 +145,42 @@
 
 
 </script>
-<button id="stareGridZobrazeni" class="AeroButton center-button" onclick="grid()">Zobrazit staré grid zobrazení</button>
-<div class="footer" style="background-color: white !important; padding: 0px; padding-bottom: 20px;">
-	<hr>
-	<p class="programName"><a href="https://github.com/T0biasCZe/TWG5000/" class="no-a-deco">Tobik Web Gallery 5000</a></p>
-	<p>© 2024 - 2025 T0biasCZe</p>
-	<div class="buttons8831">
-		<img src="/gfx/buttons/Blazor.png" />
-		<img src="/gfx/buttons/kofola2.png" />
-		<img src="/gfx/buttons/made_with_windows.gif" />
-		<img src="/gfx/buttons/unraid2.png" />
-		<img src="/gfx/buttons/Arch.png" />
-		<img src="/gfx/buttons/winserver2022.png" />
-		<img src="/gfx/buttons/wmp.png" />
-		<img src="/gfx/buttons/iso8601.png" />
+<div class="@(AllowLoadingPhotos ? "" : "pinToBottom")">
+	<button id="stareGridZobrazeni" class="AeroButton center-button" onclick="grid()">Zobrazit staré grid zobrazení</button>
+	<div class="footer">
+		<hr>
+		<p class="programName"><a href="https://github.com/T0biasCZe/TWG5000/" class="no-a-deco">Tobik Web Gallery 5000</a></p>
+		<p>© 2024 - 2025 T0biasCZe</p>
+		<div class="buttons8831">
+			<img src="/gfx/buttons/Blazor.png" />
+			<img src="/gfx/buttons/kofola2.png" />
+			<img src="/gfx/buttons/made_with_windows.gif" />
+			<img src="/gfx/buttons/unraid2.png" />
+			<img src="/gfx/buttons/Arch.png" />
+			<img src="/gfx/buttons/winserver2022.png" />
+			<img src="/gfx/buttons/wmp.png" />
+			<img src="/gfx/buttons/iso8601.png" />
 
-		@if (Info?.BrowserName.Contains("Firefox") == true){
-			<img src="/gfx/buttons/optimalizedforfirefox.gif" />
-		}
-		else {
-			if (Info?.DeviceType == "Phone") {
-				<a href="https://www.mozilla.org/cs/firefox/browsers/mobile/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+			@if (Info?.BrowserName.Contains("Firefox") == true){
+				<img src="/gfx/buttons/optimalizedforfirefox.gif" />
 			}
 			else {
-				<a href="https://www.mozilla.org/cs/firefox/new/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+				if (Info?.DeviceType == "Phone") {
+					<a href="https://www.mozilla.org/cs/firefox/browsers/mobile/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+				}
+				else {
+					<a href="https://www.mozilla.org/cs/firefox/new/"> <img src="/gfx/buttons/get-firefox.gif" /></a>
+				}
+			}
+		</div>
+	</div>
+	@if(directory != null && directory.enableComments){
+		if(AllowLoadingPhotos){
+			if(!string.IsNullOrEmpty(fullWindowsPath)){
+				<CommentSection Path="@(fullWindowsPath.Replace(@"\Photos", @"\"))" WebPath="@(rootPathWeb + GalleryPath)" info="@RequestInfo" />
 			}
 		}
-	</div>
+	}
 </div>
 <PhotoEnlarge @ref="photoEnlarge" />
 
@@ -189,10 +199,16 @@
 
 	public static string rootPath = "";
 	public static string rootPathWeb = "";
+	public string fullWindowsPath = "";
 	public string password = "";
 	public bool errorOnInit = false;
-
+	HttpContext? ctx;
 	protected override void OnInitialized() {
+		ctx = HttpContextAccessor.HttpContext;
+        if (ctx == null){
+            Console.WriteLine("\u001b[31m[ERROR] HttpContext is null — likely proxied request\u001b[0m");
+        }
+
 		string baseDirectory = AppContext.BaseDirectory;
 
 		//check if file "startDir.txt" exists next to the program exe
@@ -234,16 +250,16 @@
 	protected async override Task OnAfterRenderAsync(bool firstRender) {
 		if(!errorOnInit && firstRender) {
 			Console.WriteLine("First render");
-			string fullPath = rootPath + "\\" + GalleryPath + "\\Photos";
+			fullWindowsPath = rootPath + "\\" + GalleryPath + "\\Photos";
 			//check if the path exists
-			if(!Directory.Exists(fullPath)) {
+			if(!Directory.Exists(fullWindowsPath)) {
 				error = "Nelze načíst fotografie, protože na specifikované adrese není žádná fotogalerie<br>" +
 				"Unable to load photographs, because there is no gallery at the specified address";
 				errorOnInit = true;
 				return;
 			}
-			Console.WriteLine("Loading directory: " + fullPath);
-			directory = Models.Directory.LoadDirectory(fullPath);
+			Console.WriteLine("Loading directory: " + fullWindowsPath);
+			directory = Models.Directory.LoadDirectory(fullWindowsPath);
 			if(directory.PasswordProtected) {
 				Console.BackgroundColor = ConsoleColor.Yellow;
 				Console.ForegroundColor = ConsoleColor.Black;
@@ -311,15 +327,17 @@
 			return;
 		}
 		photoEnlarge.photograph = photo;
+		photoEnlarge.commentsEnabled = directory?.enableComments ?? false;
 		photoEnlarge.Show();
 		photoEnlarge.TriggerStateChange(); // Call the new method to trigger state change
 	}
 	public void AccessLog(string zprava, string heslo) {
-		HttpContext context = HttpContextAccessor.HttpContext;
-		string ip = Utils.GetUserIpAddress(context);
-		string userAgent = context.Request.Headers["User-Agent"];
-		string referer = context.Request.Headers["Referer"];
-		string url = context.Request.Path;
-		AccessLogger.Log(ip, url, userAgent, referer, heslo, zprava);
+		AccessLogger.Log(
+			RequestInfo.IpAddress,
+			RequestInfo.Path,
+			RequestInfo.UserAgent,
+			RequestInfo.Referer,
+			heslo, zprava
+		);
 	}
 }

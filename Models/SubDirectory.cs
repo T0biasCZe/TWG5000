@@ -67,8 +67,9 @@ namespace TWG5000.Models {
 
 			bool enable3ds = File.Exists(Path.Combine(path, "enable3ds"));
 			bool enableLive = File.Exists(Path.Combine(path, "enablelive"));
+			bool enableWav = File.Exists(Path.Combine(path, "enablewav"));
 
-			foreach(string extension in Photograph.photoExtensions) {
+			foreach(string extension in Photograph.photoExtensions.Union(Photograph.videoExtensions)) {
 				Console.WriteLine("Loading photographs with extension: " + extension);
 				foreach(FileInfo fileInfo in directoryInfo.GetFiles($"*{extension}")) {
 					Console.WriteLine("\n\nLoading photograph: " + fileInfo.Name);
@@ -77,7 +78,7 @@ namespace TWG5000.Models {
 						Console.WriteLine("Skipping icon file");
 						continue;
 					}
-					Photograph photograph = Photograph.LoadPhotograph(fileInfo.FullName, enable3ds, enableLive);
+					Photograph photograph = Photograph.LoadPhotograph(fileInfo.FullName, enable3ds, enableLive, enableWav);
 					if(photograph != null)  subDirectory.photographs.Add(photograph);
 				}
 			}

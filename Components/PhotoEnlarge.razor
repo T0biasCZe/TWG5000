@@ -1,6 +1,41 @@
 ﻿@rendermode InteractiveServer
 @inject IJSRuntime JSRuntime
 @inject IHttpContextAccessor HttpContextAccessor
+<script>
+	function MentionPhotoInComment(idFotky){
+		var commentForm = document.querySelector('#commentEditForm');
+		if(commentForm) {
+			var messageInput = commentForm.querySelector('#message');
+			if(messageInput) {
+				//simulate click on #enlargeCloseBtn
+				var enlargeCloseBtn = document.querySelector('#enlargeCloseBtn');
+				if(enlargeCloseBtn) {
+					enlargeCloseBtn.click();
+				} else {
+					console.error("Enlarge close button not found.");
+				}
+				setTimeout(() => {
+					messageInput.value += ` [photo:${idFotky}] `;
+					//scroll down to the message input
+					messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+					setTimeout(() => {
+						messageInput.focus();
+					}, 400);
+
+
+				}, 200);
+
+
+
+			} else {
+				console.error("Message input not found in comment form.");
+			}
+		} else {
+			console.error("Comment form not found.");
+		}
+	}
+</script>
 <div id="info-popup" class="windowsWindow" style="display: @(visible ? "unset" : "none")">
 	<div class="windowContent">
 		@if(photograph != null) {
@@ -9,7 +44,159 @@
 			</div>
 			<div class="windowsPhotographInfo" style="max-width: @(infoWidth)px">
 				<h1>@photograph.title</h1>
+				@if (commentsEnabled){
+					<button class="AeroButton" onclick="MentionPhotoInComment(@("'" + photograph.fileNameWithoutExtension + "'"))"><img src="/gfx/notify.png" style="display: inline; height: 24px;">Zmínit v komentáři</button>
+				}
 				<h3>@photograph.fileName</h3>
+				@if(photograph.audioPath.Length > 1){
+					Console.WriteLine("Photograph is Sound & Shot, adding audio player.");
+					<div id="wmp-shadow-host">
+						<link rel="stylesheet" href="/wmp.css" />
+						<div class="player-container-container" id="EnlargeSoundPhoto">
+							<div class="player-container">
+								<audio id="EnlargeSoundPhotoAudioTag" class="audio-player" src="@photograph.audioPath" preload="none" loop autoplay></audio>
+								<div class="progress-container">
+									<input type="range" class="progress-bar" value="0" max="100" step="0.001">
+								</div>
+
+								<div class="controls">
+									<button class="play-pause control-btn">
+										<img class="play-icon" src="/gfx/audio/play.png" alt="Play" style="display: block;" onmouseover="this.src='/gfx/audio/play_hover.png';" onmouseout="this.src='/gfx/audio/play.png';">
+										<img class="pause-icon" src="/gfx/audio/pause.png" alt="Pause" style="display: none;" onmouseover="this.src='/gfx/audio/pause_hover.png';" onmouseout="this.src='/gfx/audio/pause.png';">
+									</button>
+									<button class="stop control-btn">
+										<img src="/gfx/audio/stop.png" alt="Stop" onmouseover="this.src='/gfx/audio/stop_hover.png';" onmouseout="this.src='/gfx/audio/stop.png';">
+									</button>
+									<button class="mute-unmute control-btn">
+										<img class="mute-icon" src="/gfx/audio/mute.png" alt="Mute" style="display: block;" onmouseover="this.src='/gfx/audio/mute_hover.png';" onmouseout="this.src='/gfx/audio/mute.png';">
+										<img class="unmute-icon" src="/gfx/audio/unmute.png" alt="Unmute" style="display: none;">
+									</button>
+									<div class="volume-control">
+										<input class="volume-slider" type="range" min="0" max="1" step="0.01" value="1">
+									</div>
+									<div class="track-time">
+										<span class="current-time">0:00</span> / <span class="duration">0:00</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<script>
+							(function() {
+							console.log("WMP Audio player JS code loaded");
+							let enlargeSoundPhoto = document.getElementById('EnlargeSoundPhoto');
+							if (enlargeSoundPhoto) {
+								const playerContainer = enlargeSoundPhoto.querySelector('.player-container');
+								if (playerContainer) {
+									console.log("e");
+									const audioPlayer = playerContainer.querySelector('.audio-player');
+									const playPauseBtn = playerContainer.querySelector('.play-pause');
+									const playIcon = playerContainer.querySelector('.play-icon');
+									const pauseIcon = playerContainer.querySelector('.pause-icon');
+									const stopBtn = playerContainer.querySelector('.stop');
+									const muteBtn = playerContainer.querySelector('.mute-unmute');
+									const muteIcon = playerContainer.querySelector('.mute-icon');
+									const unmuteIcon = playerContainer.querySelector('.unmute-icon');
+									const volumeSlider = playerContainer.querySelector('.volume-slider');
+									const currentTimeDisplay = playerContainer.querySelector('.current-time');
+									const durationDisplay = playerContainer.querySelector('.duration');
+									const progressBar = playerContainer.querySelector('.progress-bar');
+
+									// Play/Pause functionality
+									playPauseBtn.addEventListener('click', () => {
+										if (audioPlayer.paused) {
+											audioPlayer.play();
+											playIcon.style.display = 'none';
+											pauseIcon.style.display = 'block';
+										} else {
+											audioPlayer.pause();
+											playIcon.style.display = 'block';
+											pauseIcon.style.display = 'none';
+										}
+									});
+
+									// Stop functionality
+									stopBtn.addEventListener('click', () => {
+										audioPlayer.pause();
+										audioPlayer.currentTime = 0;
+										playIcon.style.display = 'block';
+										pauseIcon.style.display = 'none';
+									});
+
+									// Mute/Unmute functionality
+									muteBtn.addEventListener('click', () => {
+										audioPlayer.muted = !audioPlayer.muted;
+										if (!audioPlayer.muted) {
+											unmuteIcon.style.display = 'none';
+											muteIcon.style.display = 'block';
+										} else {
+											unmuteIcon.style.display = 'block';
+											muteIcon.style.display = 'none';
+										}
+									});
+
+									// Volume control
+									volumeSlider.addEventListener('input', (e) => {
+										audioPlayer.volume = e.target.value;
+									});
+
+									// Update time display
+									audioPlayer.addEventListener('timeupdate', () => {
+										let currentMinutes = Math.floor(audioPlayer.currentTime / 60);
+										let currentSeconds = Math.floor(audioPlayer.currentTime % 60);
+										let durationMinutes = Math.floor(audioPlayer.duration / 60);
+										let durationSeconds = Math.floor(audioPlayer.duration % 60);
+
+										if (currentSeconds < 10) currentSeconds = '0' + currentSeconds;
+										if (durationSeconds < 10) durationSeconds = '0' + durationSeconds;
+
+										currentTimeDisplay.textContent = `${currentMinutes}:${currentSeconds}`;
+										durationDisplay.textContent = `${durationMinutes}:${durationSeconds}`;
+									});
+
+									// Update progress bar as audio plays
+									audioPlayer.addEventListener('timeupdate', () => {
+										const progressPercent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+										progressBar.value = progressPercent;
+									});
+
+									// Seek functionality using progress bar
+									progressBar.addEventListener('input', () => {
+										const seekTime = (progressBar.value / 100) * audioPlayer.duration;
+										audioPlayer.currentTime = seekTime;
+									});
+
+									// Resize the player-container if on mobile
+									window.addEventListener('load', () => {
+										if (window.innerWidth < 768) {
+											console.log("d");
+											let scale = (window.innerWidth - 10 - 80) / playerContainer.offsetWidth;
+											playerContainer.parentElement.style.width = playerContainer.offsetWidth * scale + "px";
+											playerContainer.parentElement.style.height = playerContainer.offsetHeight * scale + "px";
+											playerContainer.style.transform = "scale(" + scale + ")";
+											playerContainer.style.transformOrigin = "top left";
+										}
+									});
+								}
+							}
+							})();
+						</script>
+					</div>
+					<script>
+						window.enableShadowDomForWmp = function(hostId) {
+							const host = document.getElementById(hostId);
+							if (!host) return;
+							if (host.shadowRoot) return; // Already enabled
+
+							// Create shadow root
+							const shadow = host.attachShadow({ mode: 'open' });
+
+							// Move all existing children into the shadow root
+							while (host.firstChild) {
+								shadow.appendChild(host.firstChild);
+							}
+						};
+					</script>
+				}
 				@if(photograph.description.Length > 1){
 					<p>Popis: @photograph.description</p>
 				}
@@ -23,6 +210,7 @@
 				@if(photograph.cameraModel.Length > 1) {
 					<p>Fotoaparát: @photograph.cameraModel</p>
 				}
+				<p>Rozlišení: @photograph.size.Width x @photograph.size.Height </p>
 
 				<img @onclick="DownloadPhoto" src="/gfx/floppyred_download.png" />
 				<div class="photoGraphExif">
@@ -61,7 +249,7 @@
 		}
 	</div>
 	<img class="corner-top-left windowsdeco" src="./gfx/corner-top-left.png" alt="">
-	<img class="corner-top-right windowsdeco" src="./gfx/corner-top-right.png" alt="" @onclick="Hide">
+	<img class="corner-top-right windowsdeco" src="./gfx/corner-top-right.png" alt="" role="button" onclick="HideJS()" id="enlargeCloseBtn">
 	<img class="corner-bottom-left windowsdeco" src="./gfx/corner-bottom-left.png" alt="">
 	<img class="corner-bottom-right windowsdeco" src="./gfx/corner-bottom-right.png" alt="">
 	<img class="border-top windowsdeco " alt="" src="./gfx/border-top.png">
@@ -96,13 +284,32 @@
 			}, 100); // 100ms delay
 		});
 	}
-
+	function HideJS(){
+		console.log("JS client side hide function fired");
+		StopAudio();
+		if (window.dotNetHelper) {
+			window.dotNetHelper.invokeMethodAsync('Hide');
+		}
+	}
+	function StopAudio(){
+		var host = document.getElementById('wmp-shadow-host');
+		if (host && host.shadowRoot) {
+			var audioTag = host.shadowRoot.getElementById('EnlargeSoundPhotoAudioTag');
+			if (audioTag) {
+				audioTag.pause();
+				audioTag.currentTime = 0;
+				console.log("Audio stopped on close button hover.");
+			} else {
+				console.log("No audio tag found in shadow root.");
+			}
+		} else {
+			console.log("No shadow host or shadow root found.");
+		}
+	}
 
 	document.addEventListener('keydown', function (event) {
 		if (event.key === 'Escape') {
-			if (window.dotNetHelper) {
-				window.dotNetHelper.invokeMethodAsync('Hide');
-			}
+			Hide();
 		}
 	});
 	function setDotNetHelper(dotNetHelper) {
@@ -123,6 +330,8 @@
 	}
 	[Parameter]
 	public Photograph photograph { get; set; }
+	[Parameter]
+	public bool commentsEnabled { get; set; } = false;
 
 	private Photo? photo;
 
@@ -132,6 +341,7 @@
 
 	private DotNetObjectReference<PhotoEnlarge>? dotNetHelper;
 
+	private string lastAudioPath = "";
 	protected override async Task OnAfterRenderAsync(bool firstRender) {
 		if(firstRender) {
 			dotNetHelper = DotNetObjectReference.Create(this);
@@ -139,6 +349,14 @@
 			await JSRuntime.InvokeVoidAsync("setDotNetHelper", dotNetHelper);
 			await CalculateElementSize();
 			StateHasChanged();
+		}
+
+		if(photograph != null && photograph.audioPath != lastAudioPath) {
+			lastAudioPath = photograph.audioPath;
+			if(photograph.audioPath.Length > 1) {
+				Console.WriteLine("PhotoEnlarger.razor, onafterrenderasync, Photograph is Sound & Shot, adding audio player to shadow root.");
+				await JSRuntime.InvokeVoidAsync("enableShadowDomForWmp", "wmp-shadow-host");
+			}
 		}
 	}
 	[JSInvokable]
