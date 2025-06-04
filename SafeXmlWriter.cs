@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Xml;
+using System.Globalization;
 
 public class SafeXmlWriter : XmlTextWriter {
 	public SafeXmlWriter(Stream stream, Encoding encoding) : base(stream, encoding) { }
@@ -15,15 +16,19 @@ public class SafeXmlWriter : XmlTextWriter {
 
 		var buffer = new StringBuilder(xml.Length);
 
-		foreach(char c in xml) {
-			if(IsLegalXmlChar(c)) {
-				buffer.Append(c);
+		for(int i = 0; i < xml.Length;) {
+			int codePoint = char.ConvertToUtf32(xml, i);
+			int charLen = char.IsSurrogatePair(xml, i) ? 2 : 1;
+
+			if(IsLegalXmlChar(codePoint)) {
+				buffer.Append(char.ConvertFromUtf32(codePoint));
 			}
 			else {
-				Console.WriteLine("Illegal XML character: " + c);
-				//print where the illegal character was
-				Console.WriteLine("Index: " + xml.IndexOf(c));
+				Console.WriteLine("Illegal XML character: " + codePoint);
+				Console.WriteLine("Index: " + i);
 			}
+
+			i += charLen;
 		}
 
 		return buffer.ToString();

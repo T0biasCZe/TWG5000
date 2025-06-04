@@ -9,7 +9,7 @@
 @inject RequestInfoService RequestInfo
 @inject IJSRuntime JSRuntime
 
-<div class="page">
+<div class="page @(AllowLoadingPhotos ? "" : "pageFullScreen")">
 <div class="content px-4">
 
 
@@ -204,9 +204,14 @@
 	public bool errorOnInit = false;
 	HttpContext? ctx;
 	protected override void OnInitialized() {
-		ctx = HttpContextAccessor.HttpContext;
-        if (ctx == null){
-            Console.WriteLine("\u001b[31m[ERROR] HttpContext is null — likely proxied request\u001b[0m");
+		var ctx = HttpContextAccessor.HttpContext;
+        if (ctx != null && ctx.Items.ContainsKey("RequestInfo"))
+        {
+            var info = (RequestInfoService)ctx.Items["RequestInfo"];
+            RequestInfo.IpAddress = info.IpAddress;
+            RequestInfo.UserAgent = info.UserAgent;
+            RequestInfo.Referer = info.Referer;
+            RequestInfo.Path = info.Path;
         }
 
 		string baseDirectory = AppContext.BaseDirectory;

@@ -12,10 +12,10 @@
 		<img src="/gfx/Red-Pin.png" class="red-pin" style="left: @(pinPosition)px" />
 	}
 	@if(!enlargeView){
-		<span class="photoGraphTitle">@photograph.title</span>
-	} else{
+		<span class="photoGraphTitle">@((MarkupString)(EmojiHelper.ReplaceEmojis(photograph.title)))</span>
+	}<!--else{
 		<span class="photoGraphTitleEnlarge">@photograph.title</span>
-	}
+	}-->
 	@if(photograph.isLivePhoto && enlargeView) {
 		<span class="livePhotoWarn">Live photo, načítání může pár sekund trvat</span>
 	}
@@ -174,23 +174,28 @@
 		Console.WriteLine("PHOTO component - isLivePhoto:" + photograph.isLivePhoto);*/
 	}
 
-	public static Size CalculateSize(Size originalSize, Size maxSize, int whiteBorder) {
+	public static Size CalculateSize(Size originalSize, Size maxSize, int whiteBorder)
+	{
+		// The border is on both sides, so subtract twice
+		int contentMaxWidth = maxSize.Width - 2 * whiteBorder;
+		int contentMaxHeight = maxSize.Height - 2 * whiteBorder;
+
 		double aspectRatio = (double)originalSize.Width / originalSize.Height;
 
-		double width = originalSize.Width;
-		double height = originalSize.Height;
+		// Find the scale factor to fit the content area (can be >1 for upscaling)
+		double scale = Math.Min(
+			(double)contentMaxWidth / originalSize.Width,
+			(double)contentMaxHeight / originalSize.Height
+		);
 
-		if(width > maxSize.Width) {
-			width = maxSize.Width;
-			height = (int)(width / aspectRatio);
-		}
+		// Scale width and height
+		int scaledWidth = (int)Math.Round(originalSize.Width * scale);
+		int scaledHeight = (int)Math.Round(originalSize.Height * scale);
 
-		if(height > maxSize.Height) {
-			height = maxSize.Height;
-			width = (int)(height * aspectRatio);
-		}
-
-		return new Size((int)width + whiteBorder, (int)height + whiteBorder);
+		// The total size includes the border on both sides
+		Size newSize = new Size(scaledWidth + 2 * whiteBorder, scaledHeight + 2 * whiteBorder);
+		//Console.WriteLine($"Calculated size: {newSize.Width}x{newSize.Height} for original size: {originalSize.Width}x{originalSize.Height} with max size: {maxSize.Width}x{maxSize.Height} and white border: {whiteBorder}");
+		return newSize;
 	}
 
 	[Parameter] public EventCallback<Photograph> OnClick { get; set; }

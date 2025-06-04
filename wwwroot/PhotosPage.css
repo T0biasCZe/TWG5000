@@ -105,6 +105,9 @@ body {
     margin-bottom: -10px;
     padding-bottom: 30px;
 }
+    .page.pageFullScreen{
+        height: calc(100vh - 137px);
+    }
 
 .header {
     max-width: 1800px;

@@ -39,15 +39,28 @@
 <div id="info-popup" class="windowsWindow" style="display: @(visible ? "unset" : "none")">
 	<div class="windowContent">
 		@if(photograph != null) {
-			<div class="windowPhotograph">
+			<div class="windowPhotograph" data-aspect="@((float)photograph.size.Width / (float)photograph.size.Height)">
 				<Photo photograph="@photograph" enlargeOnHover="false" whiteBorder="@whiteBorder" maxSize="@maxPhotoSize" quality="Photo.UsedQuality.Medium" enlargeView="true" @ref="photo"/>
 			</div>
 			<div class="windowsPhotographInfo" style="max-width: @(infoWidth)px">
-				<h1>@photograph.title</h1>
-				@if (commentsEnabled){
-					<button class="AeroButton" onclick="MentionPhotoInComment(@("'" + photograph.fileNameWithoutExtension + "'"))"><img src="/gfx/notify.png" style="display: inline; height: 24px;">Zmínit v komentáři</button>
+				@if(!string.IsNullOrEmpty(photograph.title)){
+					string title = EmojiHelper.ReplaceEmojis(photograph.title).Replace("joypixels-24-", "joypixels-40-");
+					<h1>@((MarkupString)title)</h1>
+					if(title.Contains("joypixels-40-")){
+						<link rel="stylesheet" href="https://www.tobikcze.eu/libs/joypixels/assets/9.0/sprites/joypixels-sprite-40.min.css">
+					}
+
+					@if (commentsEnabled){
+						<button class="AeroButton" onclick="MentionPhotoInComment(@("'" + photograph.fileNameWithoutExtension + "'"))"><img src="/gfx/notify.png" style="display: inline; height: 24px;">Zmínit v komentáři</button>
+					}
+					<h3>@photograph.fileName</h3>
 				}
-				<h3>@photograph.fileName</h3>
+				else{
+					<h1>@photograph.fileName</h1>
+					@if (commentsEnabled){
+						<button class="AeroButton" onclick="MentionPhotoInComment(@("'" + photograph.fileNameWithoutExtension + "'"))"><img src="/gfx/notify.png" style="display: inline; height: 24px;">Zmínit v komentáři</button>
+					}
+				}
 				@if(photograph.audioPath.Length > 1){
 					Console.WriteLine("Photograph is Sound & Shot, adding audio player.");
 					<div id="wmp-shadow-host">
@@ -61,8 +74,8 @@
 
 								<div class="controls">
 									<button class="play-pause control-btn">
-										<img class="play-icon" src="/gfx/audio/play.png" alt="Play" style="display: block;" onmouseover="this.src='/gfx/audio/play_hover.png';" onmouseout="this.src='/gfx/audio/play.png';">
-										<img class="pause-icon" src="/gfx/audio/pause.png" alt="Pause" style="display: none;" onmouseover="this.src='/gfx/audio/pause_hover.png';" onmouseout="this.src='/gfx/audio/pause.png';">
+										<img class="play-icon" src="/gfx/audio/play.png" alt="Play" style="display: none;" onmouseover="this.src='/gfx/audio/play_hover.png';" onmouseout="this.src='/gfx/audio/play.png';">
+										<img class="pause-icon" src="/gfx/audio/pause.png" alt="Pause" style="display: block;" onmouseover="this.src='/gfx/audio/pause_hover.png';" onmouseout="this.src='/gfx/audio/pause.png';">
 									</button>
 									<button class="stop control-btn">
 										<img src="/gfx/audio/stop.png" alt="Stop" onmouseover="this.src='/gfx/audio/stop_hover.png';" onmouseout="this.src='/gfx/audio/stop.png';">
@@ -198,7 +211,7 @@
 					</script>
 				}
 				@if(photograph.description.Length > 1){
-					<p>Popis: @photograph.description</p>
+					<p>Popis: @((MarkupString)EmojiHelper.ReplaceEmojis(photograph.description))</p>
 				}
 				<p>Datum pořízení: @photograph.dateTaken</p>
 				@if(photograph.GetCoordinatesDegreeString().Length > 1) {
@@ -274,6 +287,28 @@
 	function getViewportHeight() {
 		return window.innerHeight;
 	}
+	function getWindowWidth() {
+		var windowContent = document.querySelector('#info-popup .windowContent');
+		if (windowContent) {
+			console.log("height: " + windowContent.offsetWidth);
+			//return windowContent.innerWidth;
+			return windowContent.offsetWidth;
+		} else {
+			console.error("Window content not found for width calculation.");
+			return 0;
+		}
+	}
+	function getWindowHeight() {
+		var windowContent = document.querySelector('#info-popup .windowContent');
+		if (windowContent) {
+			console.log("width: " + windowContent.offsetHeight);
+			//return windowContent.innerHeight;
+			return windowContent.offsetHeight;
+		} else {
+			console.error("Window content not found for height calculation.");
+			return 0;
+		}
+	}
 
 	function onWindowResize(dotNetHelper) {
 		let resizeTimeout;
@@ -315,16 +350,48 @@
 	function setDotNetHelper(dotNetHelper) {
 		window.dotNetHelper = dotNetHelper;
 	}
+
+	
+	/*//client side resizing
+	function Resize(){
+		//find #info-popup .windowContent
+		var windowContent = document.querySelector('#info-popup .windowContent');
+		if(windowContent) {
+			var width = window.innerWidth - 80; // 80px padding
+			var height = window.innerHeight - 80; // 80px padding
+
+		} else {
+			console.error("Window content not found for resizing.");
+		}
+	}
+	window.addEventListener('resize', () => {}
+		Resize();
+	});*/
 </script>
 
 @code{
 	private int whiteBorder = 40;
 	private bool visible = false;
+	bool firstShow = true;
 	public void Show() {
+		Console.WriteLine("PhotoEnlarger.razor, Show method called, setting visible to true.");
 		visible = true;
+		StateHasChanged();
+		if (firstShow) {
+			Timer timer = new Timer(_ => {
+				firstShow = false;
+				// Marshal back to Blazor's context
+				InvokeAsync(async () => {
+					await CalculateElementSize();
+					Console.WriteLine("PhotoEnlarger.razor, Show method, first show, calculating element size.");
+					StateHasChanged();
+				});
+			}, null, 1, Timeout.Infinite);
+		}
 	}
 	[JSInvokable]
 	public void Hide() {
+		Console.WriteLine("PhotoEnlarger.razor, Hide method called, setting visible to false.");
 		visible = false;
 		StateHasChanged();
 	}
@@ -344,6 +411,7 @@
 	private string lastAudioPath = "";
 	protected override async Task OnAfterRenderAsync(bool firstRender) {
 		if(firstRender) {
+			Console.WriteLine("PhotoEnlarger.razor, OnAfterRenderAsync, first render, setting up JS interop for window resize.");
 			dotNetHelper = DotNetObjectReference.Create(this);
 			await JSRuntime.InvokeVoidAsync("onWindowResize", dotNetHelper);
 			await JSRuntime.InvokeVoidAsync("setDotNetHelper", dotNetHelper);
@@ -366,19 +434,27 @@
 	}
 	private async Task CalculateElementSize() {
 		// Get size of the whole viewport
-		var viewportWidth = (int)await JSRuntime.InvokeAsync<double>("getViewportWidth", Array.Empty<object>());
-		var viewportHeight = (int)await JSRuntime.InvokeAsync<double>("getViewportHeight", Array.Empty<object>());
+		//var viewportWidth = (int)await JSRuntime.InvokeAsync<double>("getViewportWidth", Array.Empty<object>());
+		//var viewportHeight = (int)await JSRuntime.InvokeAsync<double>("getViewportHeight", Array.Empty<object>());
+		//get size of the windowContent element
+		var windowContentWidth = await JSRuntime.InvokeAsync<int>("getWindowWidth", Array.Empty<object>());
+		var windowContentHeight = await JSRuntime.InvokeAsync<int>("getWindowHeight", Array.Empty<object>());
 
-		int horizontalPadding = 80;
-		int verticalPadding = 80;
 
-		if(viewportWidth < 900) {
+
+		int horizontalPadding = 12;
+		int verticalPadding = 12;
+
+		if(windowContentWidth < 900) {
 			horizontalPadding = 20;
 			verticalPadding = 20;
 		}
 
 		// Calculate the size of the PhotoEnlarge element, which is 100vh - 80px and 100vw - 80px
-		elementSize = new Size(viewportWidth - horizontalPadding, viewportHeight - verticalPadding);
+		elementSize = new Size(windowContentWidth - horizontalPadding, windowContentHeight - verticalPadding);
+		Console.WriteLine("Window size: " + windowContentWidth + "x" + windowContentHeight);
+		Console.WriteLine("Padding: " + horizontalPadding + "x" + verticalPadding);
+		Console.WriteLine("Calculated element size: " + elementSize.Width + "x" + elementSize.Height);
 		if(elementSize.Width < 800) {
 			maxPhotoSize.Width = elementSize.Width - 120;
 			whiteBorder = 10;
@@ -391,18 +467,20 @@
 		}
 		else {
 			// Calculate it so that the description is at least 300px wide, and the photo takes the rest
-			maxPhotoSize.Width = elementSize.Width - 350;
+			//maxPhotoSize.Width = elementSize.Width - 350;
+			maxPhotoSize.Width = elementSize.Width - 420;
 		}
-		maxPhotoSize.Height = elementSize.Height - 120;
+		//maxPhotoSize.Height = elementSize.Height - 120;
+		maxPhotoSize.Height = elementSize.Height - 40;
 		try{
 			Size usedPhotoSize = Photo.CalculateSize(photograph.size, maxPhotoSize, 80);
 			if (elementSize.Width >= 900){
 				infoWidth = elementSize.Width - usedPhotoSize.Width - 80;
 			}
 		} catch (Exception e){
-            Console.WriteLine("Error calculating photo size: " + e.Message);
+			Console.WriteLine("Error calculating photo size: " + e.Message);
 			infoWidth = 9999;
-        }
+		}
 
 
 		Console.WriteLine("Element size: " + elementSize.Width + "x" + elementSize.Height);

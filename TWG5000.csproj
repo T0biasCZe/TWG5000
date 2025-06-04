@@ -195,6 +195,9 @@
     <Content Update="wwwroot\gfx\videoindicator.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Update="wwwroot\imageres_81.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="wwwroot\PhotosPage.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

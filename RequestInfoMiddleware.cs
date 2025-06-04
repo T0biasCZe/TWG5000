@@ -15,21 +15,41 @@ public class RequestInfoMiddleware {
 	public async Task InvokeAsync(HttpContext context, RequestInfoService info) {
 		var headers = context.Request.Headers;
 
-		info.IpAddress =
-			!string.IsNullOrEmpty(headers["CF-Connecting-IP"]) ? headers["CF-Connecting-IP"].ToString() :
-			!string.IsNullOrEmpty(headers["X-Forwarded-For"]) ? headers["X-Forwarded-For"].ToString() :
-			context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+		// Prefer Cloudflare's real client IP, then X-Forwarded-For, then remote address
+		string ip = null;
+		if(!string.IsNullOrEmpty(headers["CF-Connecting-IP"])) {
+			ip = headers["CF-Connecting-IP"].ToString();
+		}
+		else if(!string.IsNullOrEmpty(headers["X-Forwarded-For"])) {
+			// X-Forwarded-For can be a comma-separated list, take the first (original client)
+			var xff = headers["X-Forwarded-For"].ToString();
+			ip = xff.Split(',')[0].Trim();
+		}
+		else {
+			ip = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+		}
 
+		info.IpAddress = ip;
 		info.UserAgent = headers["User-Agent"].ToString();
 		info.Referer = headers["Referer"].ToString();
 		info.Path = context.Request.Path;
 
-		//Console.ForegroundColor = ConsoleColor.Red;
-		//Console.WriteLine("[DEBUG] Request info middleware ran:");
-		//Console.ResetColor();
-		//Console.WriteLine($"  IP: {info.IpAddress}");
-		//Console.WriteLine($"  UA: {info.UserAgent}");
-		//Console.WriteLine($"  Ref: {info.Referer}");
+		Console.ForegroundColor = ConsoleColor.Red;
+		Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]");
+		Console.WriteLine("[DEBUG] Request info middleware ran:");
+		Console.ResetColor();
+		Console.WriteLine($"  IP: {info.IpAddress}");
+		Console.WriteLine($"  UA: {info.UserAgent}");
+		Console.WriteLine($"  Ref: {info.Referer}");
+
+		// Store a copy for Blazor circuit access
+		var infoCopy = new RequestInfoService {
+			IpAddress = info.IpAddress,
+			UserAgent = info.UserAgent,
+			Referer = info.Referer,
+			Path = info.Path
+		};
+		context.Items["RequestInfo"] = infoCopy;
 
 		await _next(context);
 	}
