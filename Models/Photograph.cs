@@ -1,17 +1,17 @@
-﻿using System.Drawing;
+﻿using MediaInfo.DotNetWrapper;
+using MediaInfo.DotNetWrapper.Enumerations;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.Formats.Xmp;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Numerics;
-using MetadataExtractor;
-using MetadataExtractor.Formats.Exif;
+using System.Text.RegularExpressions;
 using TWG5000.Components.Pages;
 using static System.Net.Mime.MediaTypeNames;
-using Image = System.Drawing.Image;
 using Directory = System.IO.Directory;
-using MediaInfo.DotNetWrapper;
-using MediaInfo.DotNetWrapper.Enumerations;
-
-using System.Text.RegularExpressions;
+using Image = System.Drawing.Image;
 namespace TWG5000.Models {
 	public class Photograph {
 		public static List<string> photoExtensions = new List<string> { ".jpg", ".jpeg", ".jxl", ".png", ".mpo", ".gif", ".bmp", ".tiff", ".glb"};
@@ -32,6 +32,7 @@ namespace TWG5000.Models {
 		public bool isNsfw = false;
 		public bool isLivePhoto = false;
 		public bool isVideo = false;
+		public bool isPhotoSphere = false;
 		public bool hasGif = false;
 		public bool hasJpg = false;
 		public bool hasMpo = false;
@@ -207,10 +208,33 @@ namespace TWG5000.Models {
 					if(tag.Name == "GPS Latitude") {
 						ParseGpsCoordinates(photograph, directory);
 					}
-
-
 				}
 				photograph.exif += "\n";
+			}
+			var xmpDir = photograph.directories.OfType<XmpDirectory>().FirstOrDefault();
+			if(xmpDir != null) {
+				Console.WriteLine("XMP metadata found in file: " + path);
+				var xmpMeta = xmpDir.XmpMeta;
+				if(xmpMeta != null) {
+					// Enumerate all properties and look for UsePanoramaViewer or IsPhotosphere
+					var found = false;
+					foreach(var prop in xmpMeta.Properties) {
+						// prop.Path is like "UsePanoramaViewer" or "IsPhotosphere" or "GPano:UsePanoramaViewer"
+						var localName = prop.Path?.Split(':').Last();
+						if(localName != null &&
+							(localName.Equals("UsePanoramaViewer", StringComparison.OrdinalIgnoreCase) ||
+							 localName.Equals("IsPhotosphere", StringComparison.OrdinalIgnoreCase))) {
+							if(prop.Value != null && prop.Value.Equals("true", StringComparison.OrdinalIgnoreCase)) {
+								photograph.isPhotoSphere = true;
+								Console.WriteLine($"Detected PhotoSphere via XMP: {prop.Path} is true");
+								found = true;
+								break;
+							}
+						}
+					}
+					if(!found)
+						Console.WriteLine("No PhotoSphere XMP property found or set to true.");
+				}
 			}
 
 

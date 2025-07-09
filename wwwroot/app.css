@@ -49,3 +49,14 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+
+.top-row {
+    background: linear-gradient(to bottom, rgb(0, 122, 187) 0%, rgb(2, 160, 174) 100%) !important;
+}
+.sidebar{
+    background: linear-gradient(180deg, rgb(0, 122, 187) 0%, #00baa1 70%) !important;
+}
+.sidebar .top-row{
+    background: none !important;
+}

@@ -1,0 +1,225 @@
+/*!
+ * Photo Sphere Viewer / Map Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+@forward 'vars';
+@use 'sass:math';
+@use '../../core/styles/vars' as psv;
+@use 'vars' as map;
+
+@function round-to($value, $precision) {
+    @return math.div(math.round($value * $precision), $precision);
+}
+
+.psv-container {
+    --psv-map-plugin-loaded: true;
+}
+
+.psv-map {
+    position: absolute;
+    margin: map.$margin;
+    z-index: psv.$ui-zindex;
+    transition: all map.$transition;
+
+    &__container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: map.$background;
+        overflow: hidden;
+        transition: all map.$transition;
+
+        svg,
+        img,
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    &--round &__container {
+        border-radius: 50%;
+        box-shadow: map.$shadow;
+    }
+
+    &--square {
+        border-radius: map.$radius;
+        box-shadow: map.$shadow;
+        overflow: hidden;
+    }
+
+    &__overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    &__toolbar {
+        position: absolute;
+        bottom: 1em;
+        left: calc(50% - 3.25em); // (padding * 2 + icon * 2 + text) / 2
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font: map.$toolbar-font;
+        padding: 0.25em;
+        border-radius: 1.5em;
+        background: map.$toolbar-background;
+        color: map.$toolbar-text-color;
+        user-select: none;
+        transition: opacity map.$transition;
+
+        svg {
+            height: 1em;
+            cursor: pointer;
+        }
+
+        &-text {
+            width: 4em;
+            text-align: center;
+        }
+    }
+
+    &__button {
+        position: absolute;
+        width: map.$button-size;
+        aspect-ratio: 1;
+        line-height: 0;
+        background: map.$button-background;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transform-origin: center;
+        color: map.$button-color;
+        cursor: pointer;
+        transition: all map.$transition;
+
+        svg {
+            width: 60%;
+        }
+
+        &--top-left {
+            left: 0;
+            top: 0;
+            border-bottom-right-radius: map.$radius;
+            transform: translate(-#{map.$button-spacing}, -#{map.$button-spacing});
+        }
+
+        &--top-right {
+            right: 0;
+            top: 0;
+            border-bottom-left-radius: map.$radius;
+            transform: translate(map.$button-spacing, -#{map.$button-spacing});
+        }
+
+        &--bottom-left {
+            left: 0;
+            bottom: 0;
+            border-top-right-radius: map.$radius;
+            transform: translate(-#{map.$button-spacing}, map.$button-spacing);
+        }
+
+        &--bottom-right {
+            right: 0;
+            bottom: 0;
+            border-top-left-radius: map.$radius;
+            transform: translate(map.$button-spacing, map.$button-spacing);
+        }
+    }
+
+    &--round &__button {
+        border-radius: 50%;
+    }
+
+    &--square &__button {
+        transform: unset;
+    }
+
+    &--maximized {
+        margin: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+
+        @at-root .psv--has-navbar & {
+            height: calc(100% - #{psv.$navbar-height}) !important;
+        }
+    }
+
+    &--maximized, &--maximized &__container {
+        border-radius: 0;
+    }
+
+    &--round#{&}--maximized &__button {
+        outline: 2px solid currentcolor;
+
+        &--top-left {
+            left: map.$margin;
+            top: map.$margin;
+        }
+
+        &--top-right {
+            right: map.$margin;
+            top: map.$margin;
+        }
+
+        &--bottom-left {
+            left: map.$margin;
+            bottom: map.$margin;
+        }
+
+        &--bottom-right {
+            right: map.$margin;
+            bottom: map.$margin;
+        }
+    }
+
+    &--collapsed {
+        width: map.$button-size !important;
+        height: map.$button-size !important;
+
+        & > * {
+            opacity: 0;
+        }
+    }
+
+    &--collapsed &__button-close {
+        opacity: 1;
+        transform: translate(0, 0);
+        z-index: 1;
+    }
+
+    &--top-left {
+        top: 0;
+        left: 0;
+    }
+
+    &--top-right {
+        top: 0;
+        right: 0;
+    }
+
+    &--bottom-left {
+        bottom: 0;
+        left: 0;
+
+        @at-root .psv--has-navbar & {
+            bottom: #{psv.$navbar-height};
+        }
+    }
+
+    &--bottom-right {
+        bottom: 0;
+        right: 0;
+
+        @at-root .psv--has-navbar & {
+            bottom: #{psv.$navbar-height};
+        }
+    }
+}

@@ -1,0 +1,201 @@
+/*!
+ * Photo Sphere Viewer / Video Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+@forward 'vars';
+@use 'sass:map';
+@use '../../core/styles/vars' as psv;
+@use 'vars' as video;
+
+.psv-container {
+    --psv-video-plugin-loaded: true;
+}
+
+.psv-video {
+    &-progressbar {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: video.$progressbar-container;
+        cursor: pointer;
+        z-index: psv.$navbar-zindex - 1;
+
+        @at-root .psv--has-navbar & {
+            bottom: psv.$navbar-height;
+        }
+
+        & > * {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: video.$progressbar-height;
+            transition: height 0.2s linear;
+        }
+
+        &:hover > * {
+            height: video.$progressbar-height-active;
+        }
+
+        &__progress {
+            background-color: video.$progressbar-progress-color;
+        }
+
+        &__buffer {
+            background-color: video.$progressbar-buffer-color;
+        }
+
+        &__handle {
+            display: none;
+            height: video.$progressbar-handle-size !important;
+            width: video.$progressbar-handle-size;
+            border-radius: 50%;
+            margin-bottom: #{- (video.$progressbar-handle-size - video.$progressbar-height-active) * 0.5};
+            margin-left: #{- video.$progressbar-handle-size * 0.5};
+            background: video.$progressbar-handle-color;
+        }
+    }
+
+    &-time {
+        flex: 0 0 auto;
+
+        .psv-caption-content {
+            min-width: 6em;
+            text-align: center;
+        }
+    }
+
+    &-volume {
+        &__container {
+            position: absolute;
+            left: 0;
+            bottom: psv.$navbar-height;
+            padding: psv.$buttons-height 0;
+            width: psv.$navbar-height;
+            height: 0;
+            opacity: 0;
+            background: psv.$navbar-background;
+            transition:
+                opacity 0.2s linear,
+                height 0.3s step-end;
+
+            @at-root .psv--is-touch & {
+                display: none;
+            }
+        }
+
+        &__range {
+            position: relative;
+            height: video.$volume-height;
+        }
+
+        &__progress,
+        &__track {
+            position: absolute;
+            bottom: 0;
+            left: #{(psv.$navbar-height - video.$volume-width) * 0.5};
+            width: video.$volume-width;
+            background: video.$volume-bar-color;
+        }
+
+        &__track {
+            height: 100%;
+            background: video.$volume-track-color;
+        }
+
+        &__handle {
+            position: absolute;
+            left: #{(psv.$navbar-height - video.$volume-width) * 0.5};
+            height: video.$volume-handle-size;
+            width: video.$volume-handle-size;
+            border-radius: 50%;
+            margin-left: #{- (video.$volume-handle-size - video.$volume-width) * 0.5};
+            margin-bottom: #{- video.$volume-handle-size * 0.5};
+            background: video.$volume-handle-color;
+        }
+    }
+
+    &-volume-button {
+        position: relative;
+
+        &:hover .psv-video-volume__container {
+            height: video.$volume-height;
+            opacity: 1;
+            transition-timing-function: linear, step-start;
+            transition-delay: 0.2s;
+        }
+
+        &--0 .psv-button-svg {
+            #lvl1,
+            #lvl2,
+            #lvl3 {
+                fill: none;
+            }
+        }
+
+        &--1 .psv-button-svg {
+            #lvl0,
+            #lvl2,
+            #lvl3 {
+                fill: none;
+            }
+        }
+
+        &--2 .psv-button-svg {
+            #lvl0,
+            #lvl3 {
+                fill: none;
+            }
+        }
+
+        &--3 .psv-button-svg {
+            #lvl0 {
+                fill: none;
+            }
+        }
+    }
+
+    &-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: psv.$overlay-zindex;
+        pointer-events: none;
+    }
+
+    &-bigbutton {
+        display: block;
+        border: none;
+        background: none;
+        padding: 0;
+        color: video.$bigbutton-color;
+        pointer-events: auto;
+        cursor: pointer;
+        opacity: 0;
+        width: 0;
+        transition:
+            opacity 0.2s linear,
+            width 0.3s step-end;
+
+        &--pause {
+            width: map.get(video.$bigbutton-size, portrait);
+            opacity: 1;
+            transition-timing-function: linear, step-start;
+
+            @container psv-container (orientation: landscape) {
+                width: map.get(video.$bigbutton-size, landscape);
+            }
+        }
+
+        svg {
+            width: 100%;
+        }
+    }
+}

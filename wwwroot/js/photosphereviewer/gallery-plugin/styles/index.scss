@@ -1,0 +1,236 @@
+/*!
+ * Photo Sphere Viewer / Gallery Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+@forward 'vars';
+@use '../../core/styles/vars' as psv;
+@use 'vars' as gallery;
+
+.psv-container {
+    --psv-gallery-plugin-loaded: true;
+}
+
+.psv-gallery {
+    --psv-gallery-breakpoint: #{gallery.$breakpoint};
+
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background: gallery.$background;
+    border-bottom: gallery.$border;
+    overflow: hidden;
+    transition: transform ease-in-out 0.1s;
+    transform: translateY(100%);
+    z-index: psv.$ui-zindex + 1; // above map/plan
+    cursor: default;
+
+    @at-root .psv--has-navbar & {
+        bottom: psv.$navbar-height;
+        transform: translateY(calc(100% + #{psv.$navbar-height}));
+    }
+
+    &--open {
+        transform: translateY(0) !important;
+    }
+
+    &-container {
+        display: flex;
+        align-content: flex-start;
+        padding: gallery.$padding;
+        overflow: auto hidden;
+        scrollbar-width: thin;
+        scrollbar-color: gallery.$scrollbar-color transparent;
+    }
+
+    &-item {
+        flex: none;
+        position: relative;
+        border-radius: gallery.$item-radius;
+        overflow: hidden;
+        cursor: pointer;
+
+        &:not(:last-child) {
+            margin-right: gallery.$padding;
+        }
+
+        &-title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            box-sizing: border-box;
+            width: 100%;
+            height: 2.2em;
+            padding: 0.5em;
+            background: gallery.$title-background;
+            font: gallery.$title-font;
+            line-height: 1.2em;
+            color: gallery.$title-color;
+            z-index: 2;
+            transition: height ease-in-out 0.2s;
+
+            span {
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
+                user-select: none;
+            }
+        }
+
+        &-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-position: center center;
+            background-size: cover;
+            transform: scale3d(1, 1, 1);
+            transition: transform ease-in-out 0.2s;
+            z-index: 1;
+        }
+
+        &:hover &-title {
+            height: 100%;
+
+            span {
+                white-space: normal;
+            }
+        }
+
+        &:hover &-thumb {
+            transform: scale3d(gallery.$thumb-hover-scale, gallery.$thumb-hover-scale, 1);
+        }
+
+        &:focus-visible {
+            outline: psv.$element-focus-outline;
+        }
+
+        &--active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: gallery.$item-active-border;
+            z-index: 3;
+        }
+    }
+
+    &-arrow {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: gallery.$padding;
+        z-index: 9; // bellow close button
+        cursor: pointer;
+        transition: opacity .3s ease-in-out;
+
+        /* stylelint-disable no-descending-specificity */
+        svg {
+            color: gallery.$arrow-color;
+            filter: drop-shadow(5px 5px 2px black);
+            transition: translate .3s ease-in-out;
+        }
+
+        &--left, &--right {
+            top: 0;
+            bottom: 0;
+
+            svg {
+                height: 60%;
+                max-height: 60px;
+            }
+        }
+
+        &--left {
+            left: 0;
+            background: linear-gradient(to left, transparent 0%, gallery.$arrow-background 50%);
+
+            svg {
+                scale: -1 1;
+            }
+
+            &:hover svg {
+                translate: -10px 0;
+            }
+        }
+
+        &--right {
+            right: 0;
+            background: linear-gradient(to right, transparent 0%, gallery.$arrow-background 50%);
+
+            &:hover svg {
+                translate: 10px 0;
+            }
+        }
+
+        &--top, &--bottom {
+            left: 0;
+            right: 0;
+            padding: 0;
+
+            svg {
+                height: 60px;
+            }
+        }
+
+        &--top {
+            top: 0;
+            background: linear-gradient(to top, transparent 0%, gallery.$arrow-background 50%);
+
+            svg {
+                rotate: -90deg;
+                scale: 1 1.2;
+            }
+
+            &:hover svg {
+                translate: 0 -10px;
+            }
+        }
+
+        &--bottom {
+            bottom: 0;
+            background: linear-gradient(to bottom, transparent 0%, gallery.$arrow-background 50%);
+
+            svg {
+                rotate: -90deg;
+                scale: -1 1.2;
+            }
+
+            &:hover svg {
+                translate: 0 10px;
+            }
+        }
+        /* stylelint-enable no-descending-specificity */
+    }
+
+    @container psv-container (max-width: #{gallery.$breakpoint}) {
+        top: 0;
+
+        &-container {
+            flex-wrap: wrap;
+            height: calc(100% - #{psv.$panel-close-button-size});
+            margin-top: psv.$panel-close-button-size;
+            padding: 0 0 0 gallery.$padding;
+            overflow: hidden auto;
+        }
+
+        &-item {
+            width: calc(50% - #{gallery.$padding}) !important;
+            margin-bottom: gallery.$padding;
+        }
+
+        .psv-panel-close-button {
+            display: block;
+            z-index: 10;
+        }
+    }
+}

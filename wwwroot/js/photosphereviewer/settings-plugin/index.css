@@ -1,0 +1,81 @@
+/*!
+ * Photo Sphere Viewer / Settings Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+/* src/styles/index.scss */
+.psv-container {
+  --psv-settings-plugin-loaded: true;
+}
+.psv-settings {
+  position: absolute;
+  bottom: 40px;
+  background: rgba(10, 10, 10, 0.7);
+  box-shadow: 0 0 5px rgba(10, 10, 10, 0.7);
+  font: 16px sans-serif;
+  color: rgb(220, 220, 220);
+  z-index: 90;
+  opacity: 0;
+  transition: opacity 0.1s linear;
+  margin: 10px;
+}
+.psv-settings--open {
+  opacity: 1;
+}
+.psv-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.psv-settings-item {
+  height: 1.5em;
+  padding: 0.5em 1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+.psv-settings-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.psv-settings-item:focus-visible {
+  outline: 2px solid #007cff;
+  outline-offset: -2px;
+}
+.psv-settings-item *:not(:last-child) {
+  margin-right: 1em;
+}
+.psv-settings-item-label {
+  flex: 1;
+  font-weight: bold;
+}
+.psv-settings-item-value {
+  flex: none;
+}
+.psv-settings-item-icon {
+  flex: none;
+  height: 1em;
+  width: 1em;
+}
+.psv-settings-item-icon svg {
+  width: 100%;
+  height: 100%;
+  vertical-align: initial;
+}
+.psv-settings-item--header {
+  border-bottom: 1px solid currentcolor;
+}
+.psv-settings-item--header svg {
+  transform: scaleX(-1);
+}
+.psv-settings-badge {
+  position: absolute;
+  top: 10%;
+  right: 10%;
+  border-radius: 0.2em;
+  padding: 0.2em;
+  background: #111;
+  color: white;
+  font: 10px/0.9 monospace;
+}
+/*# sourceMappingURL=index.css.map */

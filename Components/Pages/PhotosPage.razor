@@ -83,6 +83,15 @@
 </div> <!--close page-->
 </div> <!--close content-->
 <script>
+window.sendAccessLog = function (logData) {
+    fetch('https://tobikcze.eu/galerie/twgAccessLog.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(logData)
+    });
+};
+</script>
+<script>
 	function setCookie(name, value, days) {
 		var expires = "";
 		if (days) {
@@ -202,17 +211,20 @@
 	public string fullWindowsPath = "";
 	public string password = "";
 	public bool errorOnInit = false;
-	HttpContext? ctx;
+
+	public struct BrowserData{
+		public string IP;
+		public string UA;
+		public string Ref;
+		public string Path;
+	}
+	BrowserData browserInfo = new BrowserData{
+		IP = "",
+		UA = "",
+		Ref = "",
+		Path = ""
+	};
 	protected override void OnInitialized() {
-		var ctx = HttpContextAccessor.HttpContext;
-        if (ctx != null && ctx.Items.ContainsKey("RequestInfo"))
-        {
-            var info = (RequestInfoService)ctx.Items["RequestInfo"];
-            RequestInfo.IpAddress = info.IpAddress;
-            RequestInfo.UserAgent = info.UserAgent;
-            RequestInfo.Referer = info.Referer;
-            RequestInfo.Path = info.Path;
-        }
 
 		string baseDirectory = AppContext.BaseDirectory;
 
@@ -253,6 +265,15 @@
 	}
 	bool firstRender = true;
 	protected async override Task OnAfterRenderAsync(bool firstRender) {
+		Console.ForegroundColor = ConsoleColor.Cyan;
+		Console.WriteLine("Loading RequestInfo from cookies in OnAfterRenderAsync");
+		LoadRequestInfoFromCookiesAsync();
+		Console.WriteLine("RequestInfo loaded from cookies: " + 
+		$"IP: {browserInfo.IP}, UA: {browserInfo.UA}, Ref: {browserInfo.Ref}, Path: {browserInfo.Path}");
+		Console.ResetColor();
+		ProcessAccessLogQueue(browserInfo);
+
+
 		if(!errorOnInit && firstRender) {
 			Console.WriteLine("First render");
 			fullWindowsPath = rootPath + "\\" + GalleryPath + "\\Photos";
@@ -283,7 +304,8 @@
 					//redirect to the login page
 					//NavigationManager.NavigateTo("photos/" + GalleryPath + "/login");
 					error = $"Tahle fotogalerie požaduje k přístupu heslo.<br>This Photogallery requires password to be entered<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
-					AccessLog("Pokus o načtení galerie bez hesla", "");
+					AccessLogToQueue("Pokus o načtení galerie bez hesla", "");
+
 					AccessDenied = true;
 				}
 				else {
@@ -296,20 +318,20 @@
 						Console.WriteLine("Password correct");
 						//password correct
 						AllowLoadingPhotos = true;
-						AccessLog("Načtení galerie se správným heslem", password);
+						AccessLogToQueue("Načtení galerie se správným heslem", password);
 					}
 					else {
 						Console.BackgroundColor = ConsoleColor.Red;
 						Console.WriteLine("Password incorrect");
 						//password incorrect
 						error = $"Nesprávné heslo<br>Incorrect password<br><a href='{loginUrl}'>Zpátky na příhlášení<br>Back to login</a>";
-						AccessLog("Pokud o načtení se špatným heslem", password);
+						AccessLogToQueue("Pokud o načtení se špatným heslem", password);
 						AccessDenied = true;
 					}
 				}
 			}
 			else {
-				AccessLog("Načtení nezaheslované galerie", "");
+				AccessLogToQueue("Načtení nezaheslované galerie", "");
 				Console.BackgroundColor = ConsoleColor.Green;
 				Console.ForegroundColor = ConsoleColor.Black;
 				Console.WriteLine("Gallery not password protected, allowing load");
@@ -324,6 +346,18 @@
 
 		await JSRuntime.InvokeVoidAsync("setGridFromCookie");
 	}
+
+	private async Task LoadRequestInfoFromCookiesAsync(){
+		// Helper JS function to get a cookie value by name
+		string GetCookieJs(string name) =>
+			$"(document.cookie.split('; ').find(row => row.startsWith('{name}='))||'').split('=')[1]||''";
+
+		browserInfo.IP = await JSRuntime.InvokeAsync<string>("eval", GetCookieJs("TWG_IP"));
+		browserInfo.UA = await JSRuntime.InvokeAsync<string>("eval", GetCookieJs("TWG_UA"));
+		browserInfo.Ref = await JSRuntime.InvokeAsync<string>("eval", GetCookieJs("TWG_Ref"));
+		browserInfo.Path = await JSRuntime.InvokeAsync<string>("eval", GetCookieJs("TWG_Path"));
+	}
+
 	private PhotoEnlarge? photoEnlarge;
 	protected void PhotoClicked(Photograph photo) {
 		Console.WriteLine("photospage.razor, PhotoClicked");
@@ -336,7 +370,43 @@
 		photoEnlarge.Show();
 		photoEnlarge.TriggerStateChange(); // Call the new method to trigger state change
 	}
-	public void AccessLog(string zprava, string heslo) {
+	public struct AccessLogData {
+		public string IpAddress { get; set; }
+		public string Path { get; set; }
+		public string UserAgent { get; set; }
+		public string Referer { get; set; }
+		public string Password { get; set; }
+		public string Message { get; set; }
+		public DateTime Timestamp;
+	}
+
+    private async Task SendAccessLogToPhpAsync(DateTime time, string password, string url, string message)
+    {
+        var logData = new Dictionary<string, string>
+        {
+            { "time", time.ToString("yyyy-MM-dd HH:mm:ss") },
+            { "password", password ?? "" },
+            { "url", url ?? "" },
+            { "message", message ?? "" }
+        };
+        await JSRuntime.InvokeVoidAsync("sendAccessLog", logData);
+    }
+	public List<AccessLogData> AccessLogQueue { get; set; } = new List<AccessLogData>();
+	public async Task ProcessAccessLogQueue(BrowserData info) {
+		Console.WriteLine("Processing access log queue, count: " + AccessLogQueue.Count);
+		foreach (var log in AccessLogQueue) {
+			string ip = string.IsNullOrEmpty(log.IpAddress) || log.IpAddress == "Unknown" ? info.IP : log.IpAddress;
+			string path = string.IsNullOrEmpty(log.Path) || log.Path == "Unknown" ? info.Path : log.Path;
+			string userAgent = string.IsNullOrEmpty(log.UserAgent) || log.UserAgent == "Unknown" ? info.UA : log.UserAgent;
+			string referer = string.IsNullOrEmpty(log.Referer) || log.Referer == "Unknown" ? info.Ref : log.Referer;
+
+			AccessLogger.Log(ip, path, userAgent, referer, log.Password, log.Message, log.Timestamp);
+            await SendAccessLogToPhpAsync(log.Timestamp, log.Password, path, log.Message);
+
+		}
+		AccessLogQueue.Clear();
+	}
+	public async Task AccessLog(string zprava, string heslo) {
 		AccessLogger.Log(
 			RequestInfo.IpAddress,
 			RequestInfo.Path,
@@ -344,5 +414,19 @@
 			RequestInfo.Referer,
 			heslo, zprava
 		);
+        await SendAccessLogToPhpAsync(DateTime.Now, heslo, $"{rootPathWeb}/{GalleryPath}", zprava);
+	}
+	public void AccessLogToQueue(string zprava, string heslo) {
+		AccessLogQueue.Add(new AccessLogData {
+			IpAddress = RequestInfo.IpAddress,
+			//Path = browserInfo.Path,
+			Path = $"{rootPathWeb}/{GalleryPath}",
+			UserAgent = browserInfo.UA,
+			Referer = browserInfo.Ref,
+			Password = heslo,
+			Message = zprava,
+			Timestamp = DateTime.Now
+		});
+		Console.WriteLine("Access log queued: " + zprava);
 	}
 }

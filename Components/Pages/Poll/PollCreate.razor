@@ -1,0 +1,112 @@
+﻿@page "/pollcreate"
+@page "/pollsite"
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h1>Vytvořit anketu</h1>
+
+<div class="poll-creator">
+	<label>Název ankety:</label>
+	<input type="text" @bind="title" class="form-control" style="width: 300px;" />
+
+	<label>Možnosti:</label>
+	<ul>
+		@for (int i = 0; i < options.Count; i++) {
+			var index = i; // local copy to avoid closure issues
+			<li>
+				<input type="text" @bind="options[index]" class="form-control" style="width: 200px; display: inline-block;" />
+				<button type="button" @onclick="() => RemoveOption(index)">Odebrat</button>
+			</li>
+		}
+	</ul>
+	<button type="button" @onclick="AddOption">Přidat možnost</button><br /><br />
+	<input type="text" @bind="defaultOption" placeholder="Výchozí možnost (nepovinné)" class="form-control" style="width: 300px;" /><br />
+	<div>
+		<input type="checkbox" id="useDays" @bind="useDays" />
+		<label for="useDays">Použít dny v týdnu místo konkrétních dat</label>
+	</div>
+
+	@if (!useDays) {
+		<label>Vyberte data:</label>
+		<input type="date" @bind="newDate" />
+		<button type="button" @onclick="AddDate">Přidat datum</button>
+		<ul>
+			@foreach (var d in dates) {
+				<li>
+					@d.ToString("dd.MM.yyyy")
+					<button type="button" @onclick="() => RemoveDate(d)">Odebrat</button>
+				</li>
+			}
+		</ul>
+	}
+
+	<button @onclick="CreatePoll">Vytvořit anketu</button>
+</div>
+
+@code {
+	private string title = string.Empty;
+	private List<string> options = new() { "" };
+	private string defaultOption = string.Empty;
+	private bool useDays = false;
+	private DateOnly newDate = DateOnly.FromDateTime(DateTime.Today);
+	private List<DateOnly> dates = new();
+
+	private void AddOption() {
+		options.Add("");
+		StateHasChanged();
+	}
+
+	private void RemoveOption(int index) {
+		if (options.Count > 1) {
+			options.RemoveAt(index);
+			StateHasChanged();
+		}
+	}
+
+	private void AddDate() {
+		if (!dates.Contains(newDate))
+			dates.Add(newDate);
+	}
+
+	private void RemoveDate(DateOnly d) {
+		dates.Remove(d);
+	}
+
+	private void CreatePoll() {
+		if(Polls.PollList == null){
+			Polls.LoadPolls();
+			if(Polls.PollList == null) {
+				Polls.PollList = new List<Poll>();
+			}
+		}
+		// Generate random ID
+		var rnd = new Random();
+		int pollId;
+		do {
+			pollId = rnd.Next(100000, 999999);
+		} while (Polls.PollList.Any(p => p.PollID == pollId));
+
+		var poll = new Poll {
+			PollID = pollId,
+			Title = title,
+			Options = options.Where(o => !string.IsNullOrWhiteSpace(o)).ToList(),
+			defaultOption = defaultOption,
+			vypsatJenDen = useDays,
+			Dates = useDays ? GetCurrentWeekMondayToSunday() : new List<DateOnly>(dates)
+		};
+
+		Polls.PollList.Add(poll);
+		Polls.SavePolls();
+
+		// Redirect to the poll page
+		Navigation.NavigateTo($"/pollsite/{pollId}");
+	}
+	private List<DateOnly> GetCurrentWeekMondayToSunday() {
+		var today = DateTime.Today;
+		// If today is Sunday, go back 6 days, otherwise go back (DayOfWeek - Monday)
+		var monday = today.AddDays(-(int)(today.DayOfWeek == DayOfWeek.Sunday ? 6 : today.DayOfWeek - DayOfWeek.Monday));
+		return Enumerable.Range(0, 7)
+			.Select(i => DateOnly.FromDateTime(monday.AddDays(i)))
+			.ToList();
+	}
+}

@@ -1,0 +1,154 @@
+/*!
+ * Photo Sphere Viewer / Plan Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+/* src/styles/index.scss */
+.psv-container {
+  --psv-plan-plugin-loaded: true;
+}
+.psv-plan {
+  position: absolute;
+  margin: 10px;
+  z-index: 40;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: all ease-in-out 0.3s;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+  max-width: calc(100% - 20px);
+  max-height: calc(100% - 20px);
+}
+.psv--has-navbar .psv-plan {
+  max-height: calc(100% - 20px - 40px);
+}
+.psv-plan__container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  transition: opacity ease-in-out 0.3s;
+}
+.psv-plan__button {
+  position: absolute;
+  width: 34px;
+  aspect-ratio: 1;
+  line-height: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: center;
+  color: white;
+  cursor: pointer;
+}
+.psv-plan__button svg {
+  width: 60%;
+}
+.psv-plan__button--top-left {
+  left: 0;
+  top: 0;
+  border-bottom-right-radius: 8px;
+}
+.psv-plan__button--top-right {
+  right: 0;
+  top: 0;
+  border-bottom-left-radius: 8px;
+}
+.psv-plan__button--bottom-left {
+  left: 0;
+  bottom: 0;
+  border-top-right-radius: 8px;
+}
+.psv-plan__button--bottom-right {
+  right: 0;
+  bottom: 0;
+  border-top-left-radius: 8px;
+}
+.psv-plan--maximized {
+  width: calc(100% - 20px) !important;
+  height: calc(100% - 20px) !important;
+}
+.psv--has-navbar .psv-plan--maximized {
+  height: calc(100% - 40px - 20px) !important;
+}
+@container psv-container (max-width: 500px) {
+  .psv-plan--maximized {
+    margin: 0;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+  .psv--has-navbar .psv-plan--maximized {
+    height: calc(100% - 40px) !important;
+    max-height: calc(100% - 40px);
+  }
+}
+.psv-plan--collapsed {
+  width: 34px !important;
+  height: 34px !important;
+}
+.psv-plan--collapsed > * {
+  opacity: 0;
+}
+.psv-plan--collapsed .psv-plan__button-close {
+  opacity: 1;
+  z-index: 1;
+}
+.psv-plan--top-left {
+  top: 0;
+  left: 0;
+}
+.psv-plan--top-right {
+  top: 0;
+  right: 0;
+}
+.psv-plan--bottom-left {
+  bottom: 0;
+  left: 0;
+}
+.psv--has-navbar .psv-plan--bottom-left {
+  bottom: 40px;
+}
+.psv-plan--bottom-right {
+  bottom: 0;
+  right: 0;
+}
+.psv--has-navbar .psv-plan--bottom-right {
+  bottom: 40px;
+}
+.psv-plan__pin,
+.psv-plan__spot {
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
+}
+.psv-plan__pin > *,
+.psv-plan__spot > * {
+  transform-origin: center;
+}
+.psv-plan__spot {
+  border-radius: 50%;
+}
+.psv-plan__layers-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+.psv-plan__layers-select option[selected] {
+  font-weight: bold;
+}
+.psv-plan .leaflet-bottom.leaflet-right {
+  left: 0;
+  display: flex;
+  justify-content: center;
+}
+/*# sourceMappingURL=index.css.map */

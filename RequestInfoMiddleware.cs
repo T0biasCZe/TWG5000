@@ -15,13 +15,20 @@ public class RequestInfoMiddleware {
 	public async Task InvokeAsync(HttpContext context, RequestInfoService info) {
 		var headers = context.Request.Headers;
 
+
+		/*var path = context.Request.Path.ToString();
+		if(path.StartsWith("/_blazor") || path.StartsWith("/_framework") || path.StartsWith("/_vs") || path.StartsWith("/_content")) {
+			Console.WriteLine($"Skipping request info middleware for path: {path}");
+			await _next(context);
+			//return;
+		}*/
+
 		// Prefer Cloudflare's real client IP, then X-Forwarded-For, then remote address
 		string ip = null;
 		if(!string.IsNullOrEmpty(headers["CF-Connecting-IP"])) {
 			ip = headers["CF-Connecting-IP"].ToString();
 		}
 		else if(!string.IsNullOrEmpty(headers["X-Forwarded-For"])) {
-			// X-Forwarded-For can be a comma-separated list, take the first (original client)
 			var xff = headers["X-Forwarded-For"].ToString();
 			ip = xff.Split(',')[0].Trim();
 		}
@@ -30,9 +37,15 @@ public class RequestInfoMiddleware {
 		}
 
 		info.IpAddress = ip;
-		info.UserAgent = headers["User-Agent"].ToString();
-		info.Referer = headers["Referer"].ToString();
+		info.UserAgent = headers.UserAgent.ToString();
+		info.Referer = headers.Referer.ToString();
 		info.Path = context.Request.Path;
+
+		// Save info to cookies (HttpOnly: false so JS can read them)
+		context.Response.Cookies.Append("TWG_IP", info.IpAddress, new CookieOptions { HttpOnly = false, SameSite = SameSiteMode.Lax });
+		context.Response.Cookies.Append("TWG_UA", info.UserAgent, new CookieOptions { HttpOnly = false, SameSite = SameSiteMode.Lax });
+		context.Response.Cookies.Append("TWG_Ref", info.Referer, new CookieOptions { HttpOnly = false, SameSite = SameSiteMode.Lax });
+		context.Response.Cookies.Append("TWG_Path", info.Path, new CookieOptions { HttpOnly = false, SameSite = SameSiteMode.Lax });
 
 		Console.ForegroundColor = ConsoleColor.Red;
 		Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]");
@@ -41,8 +54,9 @@ public class RequestInfoMiddleware {
 		Console.WriteLine($"  IP: {info.IpAddress}");
 		Console.WriteLine($"  UA: {info.UserAgent}");
 		Console.WriteLine($"  Ref: {info.Referer}");
+		Console.WriteLine($"  Path: {info.Path}");
 
-		// Store a copy for Blazor circuit access
+		// Store a copy for Blazor circuit access (optional, but not reliable in Blazor Server)
 		var infoCopy = new RequestInfoService {
 			IpAddress = info.IpAddress,
 			UserAgent = info.UserAgent,

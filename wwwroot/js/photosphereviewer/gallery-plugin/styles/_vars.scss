@@ -1,0 +1,15 @@
+@use '../../core/styles/vars' as psv;
+
+$padding: 15px !default;
+$border: 1px solid psv.$buttons-color !default;
+$background: psv.$navbar-background !default;
+$item-radius: 5px !default;
+$item-active-border: 3px solid white !default;
+$title-font: psv.$caption-font !default;
+$title-color: psv.$caption-text-color !default;
+$title-background: rgba(0, 0, 0, 0.6) !default;
+$thumb-hover-scale: 1.2 !default;
+$breakpoint: 500px !default;
+$arrow-color: rgba(255, 255, 255, 0.6) !default;
+$arrow-background: rgba(0, 0, 0, 0.6) !default;
+$scrollbar-color: $arrow-color !default;

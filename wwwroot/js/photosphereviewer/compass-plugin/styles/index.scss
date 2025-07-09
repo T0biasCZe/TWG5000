@@ -1,0 +1,69 @@
+/*!
+ * Photo Sphere Viewer / Compass Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+@forward 'vars';
+@use '../../core/styles/vars' as psv;
+@use 'vars' as compass;
+
+.psv-container {
+    --psv-compass-plugin-loaded: true;
+}
+
+.psv-compass {
+    position: absolute;
+    margin: compass.$margin;
+    z-index: psv.$ui-zindex - 1; // under map/plan
+    cursor: default;
+    aspect-ratio: 1;
+
+    @at-root .psv--has-navbar & {
+        margin-bottom: calc(#{psv.$navbar-height} + #{compass.$margin});
+    }
+
+    canvas,
+    svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    &--top-left,
+    &--top-center,
+    &--top-right {
+        top: 0;
+    }
+
+    &--center-left,
+    &--center-center,
+    &--center-right {
+        top: 50%;
+    }
+
+    &--bottom-left,
+    &--bottom-center,
+    &--bottom-right {
+        bottom: 0;
+    }
+
+    &--top-left,
+    &--center-left,
+    &--bottom-left {
+        left: 0;
+    }
+
+    &--top-center,
+    &--center-center,
+    &--bottom-center {
+        left: 50%;
+    }
+
+    &--top-right,
+    &--center-right,
+    &--bottom-right {
+        right: 0;
+    }
+}

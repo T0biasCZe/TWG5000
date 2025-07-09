@@ -1,0 +1,238 @@
+﻿@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<meta name="viewport" content="width=device-width, initial-scale=1.1">
+
+@page "/pollsite/{PollID}"
+@using System.ComponentModel.DataAnnotations
+<link href="/PollSite.css" rel="stylesheet" />
+<link href="/table_wiimmfi.css" rel="stylesheet" />
+
+
+
+<div id="pollpage">
+<h1>Anketa - @poll.Title</h1>
+@if (string.IsNullOrEmpty(PollID)){
+	//redirect to /pollcreator/
+	<p>Nezadali jste ID ankety. <br><a href="/pollcreate/">Vytvořit novou anketu</a></p>
+}
+else if(poll == null){
+<p>Zadaná anketa neexistuje</p><br><a href="/pollcreate/">Vytvořit novou anketu</a>
+}
+else if(canLoad){
+	@if (!string.IsNullOrEmpty(errorMessage)) {
+		<div class="alert alert-danger">@errorMessage</div>
+	}
+	<EditForm Model="@voteModel" OnValidSubmit="SubmitPoll">
+	<label for="username">Username:</label><br />
+	<InputText type="text" id="username" @bind-Value="voteModel.Username" placeholder="Zadej username" required /><br />
+	<label for="heslo">Heslo pro úpravu:</label><br />
+	<InputText type="password" @bind-Value="voteModel.Password" id="heslo" title="Heslo pro potřebnou případnou úpravu zadaných dat v anketě. Heslo bude bezpečně uloženo jako hash" required/><br />
+	<p>Vyberte v dnech jednotlivé možnosti:</p>
+	<table border="1" class="table11">
+		<thead>
+			<tr>
+				<th>Den</th>
+				@foreach (var option in poll.Options) {
+					<th>@option</th>
+				}
+			</tr>
+		</thead>
+		<tbody>
+			@for (int i = 0; i < poll.Dates.Count; i++) {
+			var date = poll.Dates[i];
+			<tr>
+				<td>
+					@if (poll.vypsatJenDen) {
+						@((System.Globalization.CultureInfo.GetCultureInfo("cs-CZ")).DateTimeFormat.GetDayName(date.DayOfWeek))
+					}
+					else {
+						@date.ToString("dd.MM.yyyy")
+					}
+				</td>
+				@foreach (var option in poll.Options) {
+					<td>
+					<input type="radio" name="den-@i" value="@option" checked="@(option == poll.defaultOption)" />
+					</td>
+				}
+			</tr>
+		}
+		</tbody>
+	</table>
+	<script>
+		window.submitPollSelectionsToBlazor = function (dotNetRef, pollId, username, password) {
+			const result = {};
+			let i = 0;
+			while (true) {
+				const radios = document.getElementsByName(`den-${i}`);
+				if (radios.length === 0) break;
+				for (const radio of radios) {
+					if (radio.checked) {
+						result[`den-${i}`] = radio.value;
+						break;
+					}
+				}
+				i++;
+			}
+			dotNetRef.invokeMethodAsync('ReceivePollSelections', pollId, username, password, result);
+		};
+	</script>
+
+	<button type="submit" @onclick="() => SubmitPoll()">Odeslat</button>
+	</EditForm>
+	<div id="vysledky">
+		<h2>Výsledky ankety</h2>
+		<div class="vysledkyContainer">
+				@for (int i = 0; i < poll.Dates.Count; i++) {
+					var date = poll.Dates[i];
+					var denLabel = poll.vypsatJenDen
+						? System.Globalization.CultureInfo.GetCultureInfo("cs-CZ").DateTimeFormat.GetDayName(date.DayOfWeek)
+						: date.ToString("dd.MM.yyyy");
+					var votesForDay = poll.Voters
+						.Select(v => new { v.Username, Den = v.PollDny.FirstOrDefault(d => d.den == date) })
+						.Where(x => x.Den != null && !string.IsNullOrEmpty(x.Den.vybranaMoznost))
+						.ToList();
+					int totalVotes = votesForDay.Count;
+					<h4>@denLabel</h4>
+					<div style="display:flex; flex-direction:column; gap:6px;">
+						@foreach (var option in poll.Options) {
+							int count = votesForDay.Count(m => m.Den.vybranaMoznost == option);
+							double percent = totalVotes > 0 ? (count * 100.0 / totalVotes) : 0;
+							var voters = votesForDay
+								.Where(m => m.Den.vybranaMoznost == option)
+								.Select(m => m.Username)
+								.ToList();
+							var tooltip = voters.Count > 0
+								? string.Join(", ", voters)
+								: "Nikdo";
+							<div class="result-bar-container" title="@($"{option}: {count} hlasů\n{tooltip}")">
+								<div class="result-bar"
+										style="background:@GetOptionColor(option);width:@percent.ToString().Replace(",",".")%;">
+										@if(percent > 0.25) {
+											<span class="result-bar-text">@option</span>
+										}
+								</div>
+								<span class="result-bar-label" style="margin-left:8px;vertical-align:middle;">
+									<!--@option (@count) - @percent.ToString("0,#")%-->
+									@percent.ToString("0.#")%
+								</span>
+							</div>
+						}
+					</div>
+				}
+		</div>
+	</div>
+} else{
+	<p>Něco se dosralo</p>
+}
+
+
+</div>
+@code {
+	[Parameter]
+	public string PollID { get; set; } = string.Empty;
+
+	private string username = string.Empty;
+	private string password = string.Empty; // Password for potential future modifications, securely stored as a hash
+	private List<string> selectedOptions = new();
+	private bool canLoad = false; // Flag to check if the poll can be loaded
+
+
+	protected override void OnAfterRender(bool firstRender) {
+		if (firstRender) {
+			selfRef = DotNetObjectReference.Create(this);
+		}
+	}
+
+	protected override void OnInitialized() {
+		if(Polls.PollList == null) {
+			Polls.LoadPolls();
+		}
+		if (int.TryParse(PollID, out int pollId)) {
+			poll = Polls.PollList?.FirstOrDefault(p => p.PollID == pollId);
+			canLoad = poll != null;
+			if(poll == null) return;
+			Console.WriteLine($"Selected options list ensured with {poll.Dates.Count} entries (OnInitialized).");
+			Console.WriteLine($"Poll loaded: {poll.PollID} - {poll.Title}");
+			Console.WriteLine("Počet voličů: " + poll.Voters.Count);
+			foreach (var voter in poll.Voters) {
+				Console.WriteLine($"Voter: {voter.Username}");
+				foreach (var den in voter.PollDny) {
+					Console.WriteLine($"  Den: {den.den.ToString("dd.MM.yyyy")} - Vybraná možnost: {den.vybranaMoznost}");
+				}
+			}
+		}
+		base.OnInitialized();
+	}
+
+	protected override void OnParametersSet(){
+
+	}
+
+	private DotNetObjectReference<PollSite>? selfRef;
+	private PollVoteModel voteModel = new();
+	public async Task SubmitPoll() {
+		if(voteModel.Username.Length == 0 || voteModel.Password.Length == 0) return;
+		if (selfRef == null) selfRef = DotNetObjectReference.Create(this);
+		await JS.InvokeVoidAsync("submitPollSelectionsToBlazor", selfRef, PollID, voteModel.Username, voteModel.Password);
+	}
+private string? errorMessage;
+
+	[JSInvokable]
+	public async Task ReceivePollSelections(string pollId, string username, string password, Dictionary<string, object> selections)
+	{
+		errorMessage = null;
+		var pollDny = new List<PollDen>();
+		if (poll != null) {
+			for (int i = 0; i < poll.Dates.Count; i++) {
+				var key = $"den-{i}";
+				string? selected = selections.TryGetValue(key, out var val) ? val?.ToString() : null;
+				pollDny.Add(new PollDen { den = poll.Dates[i], vybranaMoznost = selected ?? string.Empty });
+			}
+
+			// Compute the login token for the submitted username/password
+			var tempVoter = new Voter(username, password, new List<PollDen>());
+			string newLoginToken = tempVoter.LoginToken;
+
+			// Find existing voter (case-insensitive)
+			var existingVoter = poll.Voters.FirstOrDefault(v => v.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+			if (existingVoter != null) {
+				if (existingVoter.LoginToken == newLoginToken) {
+					// Update votes
+					existingVoter.PollDny = pollDny;
+					Console.WriteLine($"Voter {existingVoter.Username} updated their choices.");
+				}
+				else {
+					// Token mismatch: show error to user
+					errorMessage = "Špatné heslo pro úpravu hlasu!";
+					StateHasChanged();
+					return;
+				}
+			}
+			else {
+				// Add new voter
+				var voter = new Voter(username, password, pollDny);
+				poll.Voters.Add(voter);
+				Console.WriteLine($"Voter {voter.Username} submitted their choices (JS):");
+			}
+
+			Polls.SavePolls(); // Save the poll with the new/updated voter
+			StateHasChanged();
+		}
+	}
+	private string GetOptionColor(string option) {
+		// Jednoduché přiřazení barvy podle indexu možnosti
+		var colors = new[] { "#4caf50", "#2196f3", "#ff9800", "#e91e63", "#9c27b0", "#607d8b" };
+		int idx = poll.Options.IndexOf(option);
+		return colors[idx % colors.Length];
+	}
+	public class PollVoteModel {
+        [Required(ErrorMessage = "Zadejte username")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Zadejte heslo")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+	public Poll? poll = null;
+}

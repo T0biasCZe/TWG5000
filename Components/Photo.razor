@@ -7,6 +7,22 @@
 	var videoKey = $"{photograph.webPath}-{Guid.NewGuid()}";
 }
 
+<script>
+	window.initPhotoSphere = function (imageUrl) {
+		if (window.viewer) {
+			window.viewer.setPanorama(imageUrl);
+		} else {
+			window.viewer = new PhotoSphereViewer.Viewer({
+				container: document.querySelector('#viewer'),
+				panorama: imageUrl,
+				defaultYaw: '130deg',
+				navbar: ['zoom', 'fullscreen'],
+			});
+		}
+	};
+	console.log("PhotoSphereViewer function set");
+</script>
+
 <div @onclick="HandleClick" @ondblclick="HandleDblClick" style="width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class="photoGraphBody @(enlargeOnHover ? "photoEnlargeOnHover" : "")" id="@photograph.fileNameWithoutExtension">
 	@if(showPin) {
 		<img src="/gfx/Red-Pin.png" class="red-pin" style="left: @(pinPosition)px" />
@@ -31,6 +47,9 @@
 	@if(!enlargeView && photograph.is3D){
 		<img src="/gfx/3dindicator.png" style="top: 2px; right: 2px; max-height: 21px; position: absolute; z-index: 999"/>
 	}
+	@if(!enlargeView && photograph.isPhotoSphere){
+		<img src="/gfx/photosphereindicator.png" style="top: 2px; right: 2px; max-height: 21px; position: absolute; z-index: 999; filter: drop-shadow(0px 0px 2px #000F);"/>
+	})
 	<div style="border: @(whiteBorder)px solid white; width: @(calculatedSize.Width)px; height: @(calculatedSize.Height)px;" class='photoGraph'>
 		@if(photograph.isLivePhoto && enlargeView) {
 			Console.WriteLine("Enlarge view and live photo.");
@@ -57,6 +76,10 @@
 			@if(livePhotoAgainAlt) {
 				JSRuntime.InvokeVoidAsync("ReloadVideo");
 			}
+		}
+		@if (photograph.isPhotoSphere && enlargeView) {
+			<link href="/js/photosphereviewer/core/index.css" rel="stylesheet" />
+			<div id="viewer" style="width:@(calculatedSize.Width - whiteBorder * 2)px; height:@(calculatedSize.Height - whiteBorder * 2)px;"></div>
 		}
 		else if(!photograph.is3D){
 			<img src="@usedWebPath" alt="@photograph.title" style="width: @(calculatedSize.Width - whiteBorder * 2)px; height: @(calculatedSize.Height - whiteBorder * 2)px; @(isNsfwCss)" />
@@ -164,7 +187,9 @@
 			Console.WriteLine("lastPhoto: " + lastPhoto + ", currentPhoto: " + currentPhoto);
 			Console.WriteLine("live photo again: " + livePhotoAgain);
 		}
-		calculatedSize = CalculateSize(photograph.size, maxSize, whiteBorder);
+		Size photoSize = photograph.size;
+		if(photograph.isPhotoSphere) photoSize.Width = (int)((float)(photoSize.Width) / 2.5f);
+		calculatedSize = CalculateSize(photoSize, maxSize, whiteBorder);
 		GetPinPosition();
 		if(photograph.isNsfw == false || enlargeView) {
 			isNsfwCss = "";
@@ -204,16 +229,16 @@
 		Console.WriteLine($"Photo clicked: {photograph.fileName}");
 		//if gbl, ignore
 		if(photograph.fileName.Contains("glb")) {
-            return;
-        }
+			return;
+		}
 		OnClick.InvokeAsync(photograph);
 	}
 	private void HandleDblClick() {
 		Console.WriteLine($"Photo dbl clicked: {photograph.fileName}");
 		//if not gbl, ignore
 		if(!photograph.fileName.Contains("glb")) {
-            return;
-        }
+			return;
+		}
 		OnClick.InvokeAsync(photograph);
 	}
 	public void TriggerStateChange() {
@@ -226,6 +251,11 @@
 		Random random = new Random(photograph.fileName.GetHashCode());
 		int percent = random.Next(40, 80);
 		pinPosition = (int)(calculatedSize.Width * percent / 100);
+	}
+	protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (photograph.isPhotoSphere && enlargeView && firstRender) {
+            var module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/initPhotoSphereViewer.js");
+            await module.InvokeVoidAsync("initPhotoSphere", "#viewer", photograph.webPath);
+        }
     }
-
 }

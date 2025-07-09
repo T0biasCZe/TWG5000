@@ -1,0 +1,182 @@
+/*!
+ * Photo Sphere Viewer / Plan Plugin 5.13.3
+ * @copyright 2015-2025 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+@forward 'vars';
+@use 'sass:math';
+@use '../../core/styles/vars' as psv;
+@use 'vars' as plan;
+
+.psv-container {
+    --psv-plan-plugin-loaded: true;
+}
+
+.psv-plan {
+    position: absolute;
+    margin: plan.$margin;
+    z-index: psv.$ui-zindex;
+    overflow: hidden;
+    border-radius: plan.$radius;
+    transition: all plan.$transition;
+    box-shadow: plan.$shadow;
+    max-width: calc(100% - #{plan.$margin * 2});
+    max-height: calc(100% - #{plan.$margin * 2});
+
+    @at-root .psv--has-navbar & {
+        max-height: calc(100% - #{plan.$margin * 2} - #{psv.$navbar-height});
+    }
+
+    &__container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        transition: opacity plan.$transition;
+    }
+
+    &__button {
+        position: absolute;
+        width: plan.$button-size;
+        aspect-ratio: 1;
+        line-height: 0;
+        background: plan.$button-background;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transform-origin: center;
+        color: plan.$button-color;
+        cursor: pointer;
+
+        svg {
+            width: 60%;
+        }
+
+        &--top-left {
+            left: 0;
+            top: 0;
+            border-bottom-right-radius: plan.$radius;
+        }
+
+        &--top-right {
+            right: 0;
+            top: 0;
+            border-bottom-left-radius: plan.$radius;
+        }
+
+        &--bottom-left {
+            left: 0;
+            bottom: 0;
+            border-top-right-radius: plan.$radius;
+        }
+
+        &--bottom-right {
+            right: 0;
+            bottom: 0;
+            border-top-left-radius: plan.$radius;
+        }
+    }
+
+    &--maximized {
+        width: calc(100% - #{plan.$margin * 2}) !important;
+        height: calc(100% - #{plan.$margin * 2}) !important;
+
+        @at-root .psv--has-navbar & {
+            height: calc(100% - #{psv.$navbar-height} - #{plan.$margin * 2}) !important;
+        }
+
+        @container psv-container (max-width: 500px) {
+            margin: 0;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none;
+            max-height: none;
+            border-radius: 0;
+
+            @at-root .psv--has-navbar & {
+                height: calc(100% - #{psv.$navbar-height}) !important;
+                max-height: calc(100% - #{psv.$navbar-height});
+            }
+        }
+    }
+
+    &--collapsed {
+        width: plan.$button-size !important;
+        height: plan.$button-size !important;
+
+        & > * {
+            opacity: 0;
+        }
+    }
+
+    &--collapsed &__button-close {
+        opacity: 1;
+        z-index: 1;
+    }
+
+    &--top-left {
+        top: 0;
+        left: 0;
+    }
+
+    &--top-right {
+        top: 0;
+        right: 0;
+    }
+
+    &--bottom-left {
+        bottom: 0;
+        left: 0;
+
+        @at-root .psv--has-navbar & {
+            bottom: #{psv.$navbar-height};
+        }
+    }
+
+    &--bottom-right {
+        bottom: 0;
+        right: 0;
+
+        @at-root .psv--has-navbar & {
+            bottom: #{psv.$navbar-height};
+        }
+    }
+
+    &__pin, &__spot {
+        filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
+
+        & > * {
+            transform-origin: center;
+        }
+    }
+
+    &__spot {
+        border-radius: 50%;
+    }
+
+    &__layers-select {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        opacity: 0;
+        cursor: pointer;
+
+        option[selected] {
+            font-weight: bold;
+        }
+    }
+
+    // Leaflet attribution
+    .leaflet-bottom.leaflet-right {
+        left: 0;
+        display: flex;
+        justify-content: center;
+    }
+}
